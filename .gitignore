@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets — NEVER commit. Public submission repo.
+.env
+.wallet
+.wallet.json
+*.key
+wallet*.json
+
+# Internal playbook — NEVER publish. Strategy/notes stay private (kept on disk, untracked).
+CLAUDE.md
+CONCEPT.md
+
+# OS
+.DS_Store
