@@ -7,6 +7,14 @@
       "explorerUrl": "https://atlantic.pharosscan.xyz/",
       "explorerApiUrl": "https://api.socialscan.io/pharos-atlantic-testnet",
       "nativeToken": "PHRS"
+    },
+    {
+      "name": "mainnet",
+      "rpcUrl": "https://rpc.pharos.xyz",
+      "chainId": 1672,
+      "explorerUrl": "https://www.pharosscan.xyz/",
+      "explorerApiUrl": "https://api.socialscan.io/pharos-mainnet",
+      "nativeToken": "PROS"
     }
   ],
   "defaultNetwork": "atlantic-testnet"

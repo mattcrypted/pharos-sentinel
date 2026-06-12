@@ -1,14 +1,35 @@
 # Sentinel — a pre-action on-chain risk gate for Pharos agents
 
-Sentinel is a reusable **Agent Skill** that an AI agent calls **before it moves value** on
-Pharos. Given a target address and an intended action, it reads the chain over RPC and returns
-a risk **verdict** (`safe` / `caution` / `dangerous`), the **reasons** behind it, and a
-**risk-bounded execution plan** the agent can act on directly. It is read-only — it advises,
-it never signs or sends a transaction.
+This repository ships the **Pharos Skill Engine** with **Sentinel** added as its
+**Step 0 — risk pre-check**. The engine
+([`PharosNetwork/pharos-skill-engine`](https://github.com/PharosNetwork/pharos-skill-engine))
+gives an AI agent the full Pharos on-chain toolkit — balance/transaction queries, transfers,
+contract deploy & verify, and batch airdrops — driven through Foundry (`cast` / `forge`).
+**Sentinel** is the reusable Skill this repo adds on top: an agent calls it **before it moves
+value** and gets a risk **verdict** (`safe` / `caution` / `dangerous`), the **reasons** behind
+it, and a **risk-bounded execution plan**. It is read-only — it advises and blocks; it never
+signs or sends a transaction.
 
 A pre-action risk check is the most-called primitive in any on-chain agent stack: every
 transfer, swap, or approval is a place an agent can lose funds. Sentinel makes that check a
-single, composable call.
+single, composable call, and wires it in as the engine's first write-operation pre-check.
+
+## What's in this package
+
+This is the Pharos Skill Engine layout, with Sentinel slotted in as a skill:
+
+- **`SKILL.md`** — the engine's agent entry point. Sentinel is registered in the Capability
+  Index and as **Step 0** of the Write-Operation Pre-checks.
+- **`references/`** — the engine's command references (`query.md`, `transaction.md`,
+  `contract.md`, `script-gen.md`) plus **`sentinel.md`**, the risk-gate reference.
+- **`assets/`** — the engine's `networks.json` (Atlantic testnet + mainnet), `tokens.json`,
+  ERC-20 / airdrop Solidity templates, and script-generation templates.
+- **Sentinel runtime** — `sentinel_skill.py` (MCP server), `sentinel_cli.py` (CLI),
+  `pharos_atlantic.py` (RPC reads), plus the demos, live risk gallery, x402 gate, and tests.
+
+Sentinel runs on **Atlantic testnet** — matching the engine's default network and its Piggy Bank
+reference skill — while mainnet stays available in `networks.json` for the engine's other
+capabilities.
 
 ## What makes it different
 
@@ -125,7 +146,7 @@ shell or agent can branch on the exit status alone. See `SKILL.md` for the skill
 ## Quickstart
 
 ```bash
-python -m unittest test_sentinel   # 33 deterministic offline tests (no network)
+python -m unittest test_sentinel   # 34 deterministic offline tests (no network)
 python feature_tour.py --synthetic # walk every signal instantly (no network)
 python demo_agent.py               # an agent drives the Skill over MCP against live Atlantic
 python -c "import pharos_atlantic as p; print('chain_ok:', p.chain_ok())"
@@ -272,11 +293,13 @@ read-only and never sends a transaction.
 | `sentinel_x402.py` | x402 paid-call gate — `risk_check` behind HTTP 402 (read-only verify) |
 | `x402_demo.py` | Drives the full x402 pay-per-query loop on live Atlantic |
 | `X402.md` | x402 design: native verify-by-RPC + the official `@x402` SDK path |
-| `references/sentinel.md` | Pharos Skill Engine reference file — Sentinel as a write-operation pre-check |
-| `assets/networks.json` | Pharos network config (Atlantic testnet) — engine-compatible schema |
-| `assets/tokens.json` | Known token registry (Atlantic testnet) — engine-compatible schema |
-| `test_sentinel.py` | 33 offline, deterministic tests |
-| `skill.json` | Skill manifest |
+| `references/sentinel.md` | Sentinel's engine reference file — risk gate + Foundry (`cast`) read equivalents |
+| `references/{query,transaction,contract,script-gen}.md` | Pharos Skill Engine command references (queries, transactions, contracts, script-gen) |
+| `assets/networks.json` | Pharos network config (Atlantic testnet + mainnet) — engine schema |
+| `assets/tokens.json` | Known token registry (both networks) — engine schema |
+| `assets/{erc20,airdrop,templates}/` | Engine assets — ERC-20 + airdrop Solidity, script-gen templates |
+| `test_sentinel.py` | 34 offline, deterministic tests |
+| `skill.json` | Sentinel MCP manifest |
 
 ## License
 

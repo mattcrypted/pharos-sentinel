@@ -12,10 +12,11 @@ risk-gated execution plan. It never signs or sends a transaction.
 > **Private Key**: NOT required. Sentinel is read-only — it performs no writes,
 > so no `--private-key` is ever passed.
 
-> **Pre-check extension**: This skill adds a fifth check to the SKILL.md
-> "Write Operation Pre-Check Sequence". Run the Risk Check below before every
-> `transfer`, `approve`, `swap`, contract `deploy`, or `airdrop`. If the verdict
-> is `dangerous`, STOP and do not run the write command.
+> **Pre-check extension**: This skill runs as **Step 0** of the SKILL.md
+> "Write Operation Pre-checks" — before the private-key / address / network /
+> balance checks. Run the Risk Check below before every `transfer`, `approve`,
+> `swap`, contract `deploy`, or `airdrop`. If the verdict is `dangerous`, STOP
+> and do not run the write command.
 
 ---
 
@@ -116,3 +117,27 @@ engine's security posture — it only ever blocks, never signs.
 
 > **Agent Guidelines:** Treat a non-zero exit from the risk gate as a hard stop.
 > Never fall back to running the write command when Sentinel returns `dangerous`.
+
+---
+
+## On-Chain Reads — Foundry (`cast`) Equivalents
+
+Sentinel is on-chain: it derives its verdict entirely from **read-only** calls to
+the same RPC the engine uses (`assets/networks.json` → default `atlantic-testnet`).
+It ships a self-contained Python runtime, but every signal it reads has a direct
+Foundry equivalent — there is no hidden network access, and an agent can reproduce
+any signal by hand with `cast`. All reads below are gasless and need no private key.
+
+| Sentinel signal | JSON-RPC method | Foundry equivalent |
+|-----------------|-----------------|--------------------|
+| Contract vs EOA · bytecode opcode scan (SELFDESTRUCT / unguarded DELEGATECALL) · tiny-stub detection | `eth_getCode` | `cast code <target> --rpc-url $RPC` |
+| ERC-20 introspection (`name` / `symbol` / `decimals` / `totalSupply`) | `eth_call` | `cast call <target> "totalSupply()(uint256)" --rpc-url $RPC` |
+| Ownership concentration | `eth_call` | `cast call <target> "owner()(address)" --rpc-url $RPC` |
+| Pausable state | `eth_call` | `cast call <target> "paused()(bool)" --rpc-url $RPC` |
+| EIP-1967 implementation / upgrade-admin slot | `eth_getStorageAt` | `cast storage <target> 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $RPC` (impl) · `…0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103` (admin) |
+| EIP-1822 (UUPS) proxiable slot | `eth_getStorageAt` | `cast storage <target> 0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bec8 --rpc-url $RPC` |
+| EIP-1167 minimal-proxy detection | `eth_getCode` | `cast code <target> --rpc-url $RPC` (match the `363d3d…` minimal-proxy prefix) |
+
+`python sentinel_cli.py <target> <action>` performs all of these in one pass and
+folds them into a single `safe` / `caution` / `dangerous` verdict, rather than
+leaving the agent to run and interpret each `cast` read individually.
