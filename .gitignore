@@ -17,3 +17,8 @@ CONCEPT.md
 
 # OS
 .DS_Store
+
+# Foundry build output (fixtures)
+fixtures/out/
+fixtures/cache/
+fixtures/broadcast/

@@ -1,0 +1,11 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = []
+solc = "0.8.24"
+# Strip trailing CBOR metadata so Sentinel's opcode walk sees only real code
+# (clean, deterministic risk-gallery fixtures).
+bytecode_hash = "none"
+cbor_metadata = false
+optimizer = true
+optimizer_runs = 200

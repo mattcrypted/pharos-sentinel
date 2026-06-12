@@ -12,6 +12,8 @@ Only stdlib + web3 used. If web3 isn't installed, helpers fall back to raw JSON-
 """
 from __future__ import annotations
 import json
+import time
+import urllib.error
 import urllib.request
 
 RPC_URL = "https://atlantic.dplabs-internal.com"
@@ -21,15 +23,32 @@ EXPLORER = "https://atlantic.pharosscan.xyz"
 SYMBOL = "PHRS"
 
 
+_TRANSIENT_HTTP = {429, 500, 502, 503, 504}
+
+
 def rpc(method: str, params: list):
-    """Minimal JSON-RPC call (no deps)."""
+    """Minimal JSON-RPC call (no deps), with backoff on transient RPC throttling
+    (HTTP 429/5xx and connection blips) so bursts of reads stay reliable."""
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    req = urllib.request.Request(RPC_URL, data=body, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        out = json.loads(r.read().decode())
-    if "error" in out:
-        raise RuntimeError(out["error"])
-    return out.get("result")
+    for attempt in range(5):
+        try:
+            req = urllib.request.Request(RPC_URL, data=body,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                out = json.loads(r.read().decode())
+            if "error" in out:
+                raise RuntimeError(out["error"])
+            return out.get("result")
+        except urllib.error.HTTPError as e:
+            if e.code in _TRANSIENT_HTTP and attempt < 4:
+                time.sleep(0.4 * 2 ** attempt)
+                continue
+            raise
+        except urllib.error.URLError:
+            if attempt < 4:
+                time.sleep(0.4 * 2 ** attempt)
+                continue
+            raise
 
 
 def is_contract(address: str) -> bool:

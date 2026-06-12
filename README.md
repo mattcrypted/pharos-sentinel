@@ -21,6 +21,40 @@ single, composable call.
 - **Real EVM depth.** Bytecode opcode analysis and proxy/ownership introspection, not surface
   heuristics (details below).
 
+## How it works
+
+Sentinel sits between an agent and the chain. The agent declares an intent; Sentinel reads
+Pharos Atlantic over JSON-RPC (no keys, no transaction), scores what it finds, and returns a
+verdict, the reasons, and a risk-gated plan. The agent acts on the plan.
+
+```mermaid
+flowchart LR
+    A["Pharos agent<br/>transfer · swap · approve · call"] -->|"address + action + amount"| S{{"Sentinel Skill<br/>risk_check / execution_plan"}}
+    S -->|"JSON-RPC reads · no keys · no tx"| C[("Pharos Atlantic<br/>chainId 688689")]
+    C -->|"code · storage · eth_call"| S
+    S -->|"verdict + reasons + plan"| D{verdict}
+    D -->|safe| P["Proceed"]
+    D -->|caution| R["Reduce size / confirm"]
+    D -->|dangerous| B["Block"]
+```
+
+A blocked `approve` under a strict safe-only tolerance, end to end (mirrors `demo_agent.py`):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Ag as Pharos agent
+    participant Se as Sentinel
+    participant Ch as Pharos Atlantic
+    Ag->>Se: risk_check(addr, "approve", 100)
+    Se->>Ch: eth_getCode · eth_call · eth_getStorageAt
+    Ch-->>Se: bytecode · owner · impl slot · paused
+    Se-->>Ag: verdict "caution" + reasons
+    Ag->>Se: execution_plan(addr, "approve", 100, max_risk "safe")
+    Se-->>Ag: approved=false · BLOCK
+    Note over Ag: agent halts — no allowance is signed
+```
+
 ## Two tools
 
 | Tool | Purpose |
@@ -44,7 +78,33 @@ single, composable call.
   counterparties (a typo & address-poisoning guard).
 
 The score is additive, so signals stack; the verdict is a band over it
-(`>=70` dangerous, `>=35` caution, else safe).
+(`>=70` dangerous, `>=35` caution, else safe). Every signal feeds one additive score, which a
+band turns into the verdict and `execution_plan` turns into a decision:
+
+```mermaid
+flowchart TD
+    addr["address + action"] --> isC{"has bytecode?"}
+    isC -->|"no — EOA"| eoa["EOA signals<br/>fresh / no history · action/target mismatch"]
+    isC -->|"yes — contract"| con["Contract signals"]
+    con --> px["proxy<br/>EIP-1167 · 1967 · 1822"]
+    con --> bc["bytecode<br/>SELFDESTRUCT · DELEGATECALL"]
+    con --> own["ownership / upgrade-admin<br/>EOA vs contract"]
+    con --> tok["ERC-20<br/>supply · zero-supply trap"]
+    con --> st["pausable · tiny stub"]
+    eoa --> sc(["additive score"])
+    px --> sc
+    bc --> sc
+    own --> sc
+    tok --> sc
+    st --> sc
+    sc --> band{"score band"}
+    band -->|">= 70"| dg["dangerous"]
+    band -->|">= 35"| ca["caution"]
+    band -->|"else"| sf["safe"]
+    dg --> plan["execution_plan<br/>approve / block + bounded size"]
+    ca --> plan
+    sf --> plan
+```
 
 ## Use it two ways
 
@@ -65,7 +125,7 @@ shell or agent can branch on the exit status alone. See `SKILL.md` for the skill
 ## Quickstart
 
 ```bash
-python -m unittest test_sentinel   # 24 deterministic offline tests (no network)
+python -m unittest test_sentinel   # 33 deterministic offline tests (no network)
 python feature_tour.py --synthetic # walk every signal instantly (no network)
 python demo_agent.py               # an agent drives the Skill over MCP against live Atlantic
 python -c "import pharos_atlantic as p; print('chain_ok:', p.chain_ok())"
@@ -83,6 +143,22 @@ $ python sentinel_cli.py 0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23 call
 }
 ```
 
+## Live demo
+
+Drive five Sentinel features as five real Atlantic transactions, one command each:
+
+```bash
+python demo.py deploy      # deploy a malicious contract -> Sentinel flags it DANGEROUS
+python demo.py upgrade     # swap a proxy's logic in one tx -> verdict escalates
+python demo.py pause       # pause a contract -> verdict escalates
+python demo.py transfer    # execution_plan sends real PHRS only when safe
+python demo.py x402        # pay-per-query risk check over x402
+python demo.py all         # all five, with a transaction summary
+```
+
+Every run deploys fresh contracts and sends fresh transactions — it's live, not a recording. Full
+runbook (commands, suggested patter, expected output) in [`DEMO.md`](DEMO.md).
+
 ## Live on Pharos Atlantic
 
 Sentinel integrates with **Pharos Atlantic Testnet** over live JSON-RPC:
@@ -90,12 +166,86 @@ Sentinel integrates with **Pharos Atlantic Testnet** over live JSON-RPC:
 - RPC `https://atlantic.dplabs-internal.com` · chainId **688689** · explorer
   `https://atlantic.pharosscan.xyz` · gas token **PHRS**
 
-As a deployment check, a throwaway contract was deployed from a testnet wallet and then analyzed
-by Sentinel live — the loop runs end to end on-chain:
+### Live risk gallery
 
-- Deploy tx: [`0x67080c06…50dbf`](https://atlantic.pharosscan.xyz/tx/0x67080c061dbb423bbf25f84a1ad05b092137765a877091ee26a93c4bf9950dbf)
-- Contract: [`0x24f3cd30…1b23`](https://atlantic.pharosscan.xyz/address/0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23)
-  — Sentinel flags it `caution — tiny bytecode stub` (the sample output above).
+To prove the engine against real bytecode (not mocks), a spectrum of decoy contracts was
+**deployed on Atlantic**, each engineered to trip a different signal. Sentinel reads them live and
+returns a monotonic safe → caution → dangerous ladder — reproduce it yourself with `python gallery.py`:
+
+| Exhibit | Action | Verdict | Score | Signal demonstrated |
+|---|---|:--:|--:|---|
+| [CleanToken](https://atlantic.pharosscan.xyz/address/0x63079724981B42967ee9F77E637767ac7779e181) | transfer | 🟢 safe | 0 | clean ERC-20, no privileged owner — baseline, no false alarm |
+| [MinimalProxy](https://atlantic.pharosscan.xyz/address/0x434d20f7211deaca55667d313b9e6035481ef6f5) | call | 🟢 safe | 10 | EIP-1167 minimal proxy detected |
+| [TinyStub](https://atlantic.pharosscan.xyz/address/0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23) | call | 🟡 caution | 35 | tiny-bytecode stub / trap |
+| [ZeroSupplyToken](https://atlantic.pharosscan.xyz/address/0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5) | transfer | 🟡 caution | 40 | zero-supply token trap + EOA owner |
+| [UpgradeableProxy](https://atlantic.pharosscan.xyz/address/0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513) | call | 🟡 caution | 50 | EIP-1967 upgradeable + EOA owner + paused |
+| [Backdoor](https://atlantic.pharosscan.xyz/address/0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D) | call | 🔴 dangerous | 70 | SELFDESTRUCT + unguarded DELEGATECALL + paused |
+
+Each verdict above is produced live, on-chain. The address/verdict map lives in
+[`fixtures.json`](fixtures.json); `gallery.py` re-checks every exhibit and fails on any drift. The
+Solidity-backed exhibits (CleanToken, ZeroSupplyToken, UpgradeableProxy, Backdoor) have **verified
+source on Pharos Scan** — open any address and check the Contract tab; sources are in
+[`fixtures/`](fixtures/).
+
+### Live upgrade attack — Sentinel catches a rug as it happens
+
+The gallery above is static. To prove Sentinel reads **live, mutable** state — and to demonstrate
+the exact threat it warns about — a mutable EIP-1967 proxy was deployed pointing at benign logic,
+then **upgraded on-chain to hostile logic in a single transaction**. Sentinel read the *same proxy
+address* before and after:
+
+| | Implementation | Verdict | What Sentinel sees |
+|---|---|:--:|---|
+| **Before** | benign logic | 🟢 safe (20) | upgradeable — *owner can swap the logic after you interact* |
+| **After** ([upgrade tx](https://atlantic.pharosscan.xyz/tx/0xc7e58da048465c0ecefbf5bc52f5a16ec0b828f529b2f379aa9fb562076cebc0)) | hostile logic | 🟡 caution (50) | + an EOA owner now holds privileged control + the contract is now PAUSED |
+
+The proxy address never changed —
+[`0x22Aa…d27A`](https://atlantic.pharosscan.xyz/address/0x22Aa40e24a1186131C2Ea21db191095eD590d27A) —
+but its implementation, ownership, and pause state did. That is the upgrade-rug vector demonstrated
+end to end: because Sentinel reads on-chain state at call time, its verdict reflects the swap the
+moment it lands. The warning it prints *before* an attack is the risk that *becomes* the attack.
+
+### Live pause flip — Sentinel tracks operational state
+
+A second live mutation, on a plain (non-proxy) contract. It carries a latent `SELFDESTRUCT`
+(25 — below the caution line on its own); the operator then **pauses it in a single transaction**,
+and Sentinel, reading state at call time, tips to caution:
+
+| | `paused()` | Verdict | What Sentinel sees |
+|---|:--:|:--:|---|
+| **Before** | — | 🟢 safe (25) | latent SELFDESTRUCT |
+| **After** ([pause tx](https://atlantic.pharosscan.xyz/tx/0x97cad956c6242317be9ef8129a78e4335797014f72ff2e9499862c667bb88734)) | true | 🟡 caution (45) | + the contract is now PAUSED |
+
+Same contract — [`0xE84f…410B`](https://atlantic.pharosscan.xyz/address/0xE84f51f6D4146bC3c676A190B8988EA9B2Db410B) —
+different live state, different verdict.
+
+### The gate moves real value
+
+`execution_plan` is not advisory theatre — it decides whether value actually moves.
+[`guarded_transfer.py`](guarded_transfer.py) asks Sentinel, then **sends a real PHRS transfer only
+when the plan is approved**:
+
+- ✅ vetted counterparty → `safe` → approved → [0.0005 PHRS sent](https://atlantic.pharosscan.xyz/tx/0x1d9979cb19c75f4385f984da5b0f68cb89d0993b9f511d0a9cc3ce198a12332a)
+- ⛔ the live `Backdoor` fixture → `dangerous` → blocked → **no transaction is signed**
+
+The Skill stays read-only; only the agent signs. One approval moved value on-chain; one block
+stopped it before a transaction existed.
+
+## Paid calls via x402
+
+Pharos lists *"pay-per-query supplier / supply-chain risk assessment"* as a flagship x402
+use case — which is exactly what Sentinel is. So `risk_check` is also exposed behind an
+**x402 paywall**: an unpaid request gets `402 Payment Required`; the agent pays a micro-transfer
+on Atlantic; the retry returns the verdict plus the settlement `tx_hash`.
+
+```bash
+python sentinel_x402.py   # read-only x402 gate on 127.0.0.1:4021
+python x402_demo.py       # 402 -> pay on Atlantic -> 200 verdict -> replay rejected
+```
+
+The gate verifies payment with the **same RPC reads Sentinel uses for risk**, so the server
+stays read-only and keyless (only the client sends value) and adds **zero dependencies**. Full
+design and the official `@x402` SDK path: [`X402.md`](X402.md).
 
 ## Security posture
 
@@ -112,9 +262,20 @@ read-only and never sends a transaction.
 | `pharos_atlantic.py` | Pharos Atlantic config + dependency-free JSON-RPC read/introspection helpers |
 | `sentinel_cli.py` | Thin CLI wrapper for SKILL.md / framework agents |
 | `SKILL.md` | Skill definition for Claude Code / OpenClaw / Codex |
+| `demo.py` | Live demo driver — one subcommand per on-chain feature (deploy/upgrade/pause/transfer/x402) |
+| `DEMO.md` | Live demo runbook — commands, suggested patter, expected output |
 | `demo_agent.py` | Demo agent driving the Skill over a real MCP connection against live Atlantic |
+| `guarded_transfer.py` | Agent that sends a real PHRS transfer only when `execution_plan` approves |
 | `feature_tour.py` | Guided walkthrough of every risk signal |
-| `test_sentinel.py` | 24 offline, deterministic tests |
+| `gallery.py` | Re-checks the live Atlantic risk-gallery fixtures and flags drift |
+| `fixtures.json` | Deployed gallery addresses + expected verdicts |
+| `sentinel_x402.py` | x402 paid-call gate — `risk_check` behind HTTP 402 (read-only verify) |
+| `x402_demo.py` | Drives the full x402 pay-per-query loop on live Atlantic |
+| `X402.md` | x402 design: native verify-by-RPC + the official `@x402` SDK path |
+| `references/sentinel.md` | Pharos Skill Engine reference file — Sentinel as a write-operation pre-check |
+| `assets/networks.json` | Pharos network config (Atlantic testnet) — engine-compatible schema |
+| `assets/tokens.json` | Known token registry (Atlantic testnet) — engine-compatible schema |
+| `test_sentinel.py` | 33 offline, deterministic tests |
 | `skill.json` | Skill manifest |
 
 ## License

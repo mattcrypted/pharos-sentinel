@@ -24,5 +24,5 @@
       "returns": {"approved": "boolean", "verdict": "string", "suggested": "object"}
     }
   ],
-  "tags": ["AgentSkill", "MCP", "risk", "defi", "security", "pharos"]
+  "tags": ["AgentSkill", "MCP", "risk", "defi", "security", "pharos", "x402"]
 }

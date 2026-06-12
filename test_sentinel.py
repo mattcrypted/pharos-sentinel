@@ -11,6 +11,7 @@ import unittest
 
 import pharos_atlantic as pharos
 import sentinel_skill as s
+import sentinel_x402 as x402
 
 
 # --- fake-chain encoders -------------------------------------------------------
@@ -141,8 +142,15 @@ class RiskCheckTests(unittest.TestCase):
         self.assertEqual(r["data"]["erc20"]["symbol"], "USDC")
         self.assertEqual(r["data"]["erc20"]["decimals"], 18)
 
-    def test_token_approve_is_caution(self):
-        self.assertEqual(self.verdict(A_TOKEN, "approve"), "caution")
+    def test_known_token_approve_is_safe(self):
+        # softened: approving a plain, healthy, non-proxy token is a normal action
+        r = s.risk_check(A_TOKEN, "approve")
+        self.assertEqual(r["verdict"], "safe")
+        self.assertTrue(any("finite cap" in why for why in r["reasons"]))
+
+    def test_non_token_approve_is_caution(self):
+        # approving something that is not a healthy token keeps strong friction
+        self.assertEqual(self.verdict(A_ROUTER, "approve"), "caution")
 
     def test_zero_supply_token_approve_is_caution(self):
         self.assertEqual(self.verdict(A_TOKEN_ZERO, "approve"), "caution")
@@ -219,7 +227,7 @@ class ExecutionPlanTests(unittest.TestCase):
         self.assertEqual(p["suggested"]["amount_phrs"], 10.0)
 
     def test_caution_action_approved_half_size(self):
-        p = s.execution_plan(A_TOKEN, "approve", 10.0, max_risk="caution")
+        p = s.execution_plan(A_ROUTER, "approve", 10.0, max_risk="caution")
         self.assertTrue(p["approved"])
         self.assertEqual(p["suggested"]["amount_phrs"], 5.0)
 
@@ -229,8 +237,87 @@ class ExecutionPlanTests(unittest.TestCase):
         self.assertEqual(p["suggested"]["action"], "BLOCK")
 
     def test_caution_blocked_when_tolerance_safe(self):
-        p = s.execution_plan(A_TOKEN, "approve", 10.0, max_risk="safe")
+        p = s.execution_plan(A_ROUTER, "approve", 10.0, max_risk="safe")
         self.assertFalse(p["approved"])
+
+
+class X402Tests(unittest.TestCase):
+    """The x402 paid-call gate: envelope encoding + on-chain payment verification.
+    Verification is mocked at the RPC layer, exactly as the risk engine is."""
+
+    def setUp(self):
+        self._orig = pharos.rpc
+
+    def tearDown(self):
+        pharos.rpc = self._orig
+
+    @staticmethod
+    def _chain_with_tx(to, value, *, found=True, mined=True, status="0x1"):
+        def rpc(method, params):
+            if method == "eth_getTransactionByHash":
+                return {"to": to, "from": "0xpayer", "value": hex(value)} if found else None
+            if method == "eth_getTransactionReceipt":
+                return {"status": status} if mined else None
+            raise AssertionError(f"unexpected rpc {method}")
+        return rpc
+
+    def _proof(self, txh="0xabc", network=None):
+        return {"network": network or x402.NETWORK, "txHash": txh}
+
+    def test_header_roundtrip(self):
+        obj = {"x402Version": 1, "accepts": [{"scheme": "exact-native"}]}
+        self.assertEqual(x402.decode_header(x402.encode_header(obj)), obj)
+
+    def test_payment_required_shape(self):
+        acc = x402.payment_required()["accepts"][0]
+        self.assertEqual(acc["network"], f"eip155:{pharos.CHAIN_ID}")
+        self.assertEqual(acc["payTo"], x402.PAY_TO)
+        self.assertEqual(int(acc["maxAmountRequired"]), x402.PRICE_WEI)
+
+    def test_verify_ok(self):
+        pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI)
+        ok, _, payer = x402.verify_payment(self._proof(), x402.payment_required(), set())
+        self.assertTrue(ok)
+        self.assertEqual(payer, "0xpayer")
+
+    def test_verify_underpaid(self):
+        pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI - 1)
+        ok, reason, _ = x402.verify_payment(self._proof(), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("underpaid", reason)
+
+    def test_verify_wrong_recipient(self):
+        pharos.rpc = self._chain_with_tx("0xdeadbeef", x402.PRICE_WEI)
+        ok, reason, _ = x402.verify_payment(self._proof(), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("payTo", reason)
+
+    def test_verify_network_mismatch(self):
+        ok, reason, _ = x402.verify_payment(
+            self._proof(network="eip155:1"), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("network", reason)
+
+    def test_verify_tx_not_found(self):
+        pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI, found=False)
+        ok, reason, _ = x402.verify_payment(self._proof(), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("not found", reason)
+
+    def test_verify_unconfirmed(self):
+        pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI, mined=False)
+        ok, reason, _ = x402.verify_payment(self._proof(), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("confirmed", reason)
+
+    def test_verify_replay_rejected(self):
+        pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI)
+        seen = set()
+        ok1, _, _ = x402.verify_payment(self._proof("0xAbC"), x402.payment_required(), seen)
+        ok2, reason, _ = x402.verify_payment(self._proof("0xAbC"), x402.payment_required(), seen)
+        self.assertTrue(ok1)
+        self.assertFalse(ok2)
+        self.assertIn("replay", reason)
 
 
 if __name__ == "__main__":

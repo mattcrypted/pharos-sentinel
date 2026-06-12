@@ -69,9 +69,6 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
         if token["total_supply"] == 0:
             score += 30
             reasons.append("token reports zero total supply — non-functional or a trap")
-    elif action == "approve":
-        score += 15
-        reasons.append("approve target does not expose an ERC-20 interface — approvals are for tokens; verify the target")
 
     # bytecode opcode analysis (proper opcode walk, not a substring match)
     ops = pharos.dangerous_opcodes(address)
@@ -108,8 +105,20 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
         reasons.append("contract is currently PAUSED — interactions may fail or are gated by the owner")
 
     if action == "approve":
-        score += 35
-        reasons.append("approve grants a spend allowance — only approve trusted, audited contracts")
+        # Soften approvals to plain, healthy tokens (a normal, expected action);
+        # keep strong friction where allowance drains actually happen — non-tokens,
+        # trap (zero-supply) tokens, and upgradeable proxies.
+        if token["is_erc20"]:
+            if (token["total_supply"] or 0) > 0 and not (minimal or impl):
+                score += 10
+                reasons.append("approve grants a spend allowance — set a finite cap and approve only trusted spenders")
+            else:
+                score += 35
+                reasons.append("approve to a non-standard token (zero-supply or upgradeable) — verify before granting an allowance")
+        else:
+            score += 50
+            reasons.append("approve target does not expose an ERC-20 interface — approvals are for tokens; "
+                           "this is the #1 drain vector, verify the target")
 
     return score
 

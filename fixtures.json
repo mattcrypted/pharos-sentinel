@@ -1,0 +1,50 @@
+{
+  "network": "Pharos Atlantic Testnet",
+  "chainId": 688689,
+  "explorer": "https://atlantic.pharosscan.xyz",
+  "note": "Live risk-gallery fixtures deployed on Pharos Atlantic. Each contract is engineered to light up a distinct Sentinel signal, forming a monotonic safe -> caution -> dangerous spectrum. Verdicts are reproduced live by gallery.py (read-only).",
+  "exhibits": [
+    {
+      "name": "CleanToken",
+      "address": "0x63079724981B42967ee9F77E637767ac7779e181",
+      "action": "transfer",
+      "expect": "safe",
+      "signal": "clean ERC-20, no privileged owner (baseline — Sentinel does not cry wolf)"
+    },
+    {
+      "name": "MinimalProxy",
+      "address": "0x434d20f7211deaca55667d313b9e6035481ef6f5",
+      "action": "call",
+      "expect": "safe",
+      "signal": "EIP-1167 minimal proxy detected — logic lives in a fixed implementation"
+    },
+    {
+      "name": "TinyStub",
+      "address": "0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",
+      "action": "call",
+      "expect": "caution",
+      "signal": "tiny-bytecode stub/trap rather than a working contract"
+    },
+    {
+      "name": "ZeroSupplyToken",
+      "address": "0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",
+      "action": "transfer",
+      "expect": "caution",
+      "signal": "zero-supply token trap + single EOA owner"
+    },
+    {
+      "name": "UpgradeableProxy",
+      "address": "0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",
+      "action": "call",
+      "expect": "caution",
+      "signal": "EIP-1967 upgradeable proxy + EOA owner + currently paused"
+    },
+    {
+      "name": "Backdoor",
+      "address": "0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",
+      "action": "call",
+      "expect": "dangerous",
+      "signal": "SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner"
+    }
+  ]
+}
