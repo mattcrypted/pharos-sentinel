@@ -165,9 +165,11 @@ def risk_check(address: str, action: str = "transfer", amount_phrs: float = 0.0)
     if not _ADDRESS_RE.match(address or ""):
         return {"verdict": "unknown", "score": -1,
                 "reasons": [f"'{address}' is not a valid 0x-prefixed 20-byte address"], "data": {}}
+    pharos.clear_cache()
     if not pharos.chain_ok():
         return {"verdict": "unknown", "score": -1,
                 "reasons": ["could not reach Pharos Atlantic RPC"], "data": {}}
+    pharos.warm(address)        # concurrent prefetch — scoring below runs against a warm cache
 
     action = (action or "transfer").lower()
     reasons, data = [], {}

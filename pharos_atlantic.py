@@ -16,9 +16,12 @@ needs. All reads are gasless and keyless — Sentinel never signs or sends a tx.
 Requires `cast` (Foundry) on PATH; install per the Skill Engine Prerequisites.
 """
 from __future__ import annotations
+import concurrent.futures
 import json
+import os
 import shutil
 import subprocess
+import threading
 import time
 
 RPC_URL = "https://atlantic.dplabs-internal.com"
@@ -63,6 +66,51 @@ def _cast(args: list, *, timeout: int = 30) -> str:
         raise RuntimeError(last or f"cast {args[0]} failed")
 
 
+# --- Request-scoped read cache + concurrent prefetch ---------------------------
+# A single risk_check otherwise re-fetches identical reads several times (the same
+# bytecode ~4x). The cache dedupes them to one round-trip; warm() then primes every
+# read concurrently so the sequential scoring code pays no further network cost.
+# Cleared at the start of each risk_check, so live state changes are always re-read.
+PREFETCH_WORKERS = int(os.environ.get("SENTINEL_PREFETCH_WORKERS", "12"))
+
+_read_cache: dict = {}
+_cache_lock = threading.Lock()
+
+
+class _Entry:
+    __slots__ = ("ok", "val", "err")
+
+    def __init__(self, ok, val=None, err=None):
+        self.ok, self.val, self.err = ok, val, err
+
+
+def clear_cache() -> None:
+    with _cache_lock:
+        _read_cache.clear()
+
+
+def _cached(args: list):
+    """`_cast` with a request-scoped cache. Caches both values and errors — a revert
+    is deterministic, and transient errors are already retried inside `_cast` — so a
+    repeated or pre-warmed read costs zero extra round-trips."""
+    key = tuple(args)
+    with _cache_lock:
+        hit = _read_cache.get(key)
+    if hit is not None:
+        if hit.ok:
+            return hit.val
+        raise hit.err
+    try:
+        val = _cast(args)
+    except Exception as e:
+        with _cache_lock:
+            _read_cache[key] = _Entry(False, err=e)
+        raise
+    with _cache_lock:
+        _read_cache[key] = _Entry(True, val=val)
+    return val
+
+
 def rpc(method: str, params: list):
     """Generic JSON-RPC call executed through Foundry (`cast rpc <method> ...`).
 
@@ -81,7 +129,7 @@ def rpc(method: str, params: list):
 
 
 def get_code(address: str) -> str:
-    return _cast(["code", address]) or "0x"
+    return _cached(["code", address]) or "0x"
 
 
 def is_contract(address: str) -> bool:
@@ -95,16 +143,16 @@ def code_size(address: str) -> int:
 
 
 def balance_wei(address: str) -> int:
-    return int(_cast(["balance", address]))          # cast prints wei in decimal
+    return int(_cached(["balance", address]))         # cast prints wei in decimal
 
 
 def tx_count(address: str) -> int:
-    return int(_cast(["nonce", address]))            # cast prints nonce in decimal
+    return int(_cached(["nonce", address]))           # cast prints nonce in decimal
 
 
 def chain_ok() -> bool:
     try:
-        return int(_cast(["chain-id"])) == CHAIN_ID   # cast prints chain id in decimal
+        return int(_cached(["chain-id"])) == CHAIN_ID  # cast prints chain id in decimal
     except Exception:
         return False
 
@@ -130,12 +178,12 @@ _OP_SELFDESTRUCT = 0xFF
 
 def eth_call(to: str, data: str) -> str:
     """Read-only contract call via `cast call`; returns raw return hex (possibly '0x').
-    Raises (via _cast) if the method reverts — callers treat that as "not exposed"."""
-    return _cast(["call", to, data]) or "0x"
+    Raises (via _cached/_cast) if the method reverts — callers treat that as "not exposed"."""
+    return _cached(["call", to, data]) or "0x"
 
 
 def storage_at(address: str, slot: str) -> str:
-    return _cast(["storage", address, slot]) or "0x"
+    return _cached(["storage", address, slot]) or "0x"
 
 
 def _addr_from_word(word: str):
@@ -296,3 +344,35 @@ def dangerous_opcodes(address):
             flags["selfdestruct"] = True
         i += 1
     return flags
+
+
+def warm(address: str, *, workers: int = PREFETCH_WORKERS) -> None:
+    """Concurrently pre-fetch every read a single risk_check might need, so the
+    sequential scoring code then runs against a warm cache (turning ~12 serial
+    round-trips into a few concurrent waves). Bounded by `workers` (env
+    SENTINEL_PREFETCH_WORKERS) to stay under the RPC rate limit. Errors are
+    swallowed + cached here, so a reverting probe (e.g. owner() on a non-Ownable)
+    costs no second round-trip during scoring. Call clear_cache() first."""
+    jobs = [
+        ["code", address],
+        ["storage", address, EIP1967_IMPL_SLOT],
+        ["storage", address, EIP1822_IMPL_SLOT],
+        ["storage", address, EIP1967_ADMIN_SLOT],
+        ["call", address, SEL_TOTAL_SUPPLY],
+        ["call", address, SEL_DECIMALS],
+        ["call", address, SEL_SYMBOL],
+        ["call", address, SEL_NAME],
+        ["call", address, SEL_OWNER],
+        ["call", address, SEL_PAUSED],
+        ["nonce", address],
+        ["balance", address],
+    ]
+
+    def _safe(job):
+        try:
+            _cached(job)
+        except Exception:
+            pass
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(_safe, jobs))
