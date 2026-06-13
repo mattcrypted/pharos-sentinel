@@ -5,12 +5,12 @@ gate, BEFORE any value-moving operation on Pharos. Sentinel reads the chain over
 RPC and returns a verdict (`safe` / `caution` / `dangerous`) with reasons, plus a
 risk-gated execution plan. It never signs or sends a transaction.
 
-> **Network Configuration**: the `<rpc>` Sentinel uses is read from the matching
-> network's `rpc` field in `assets/networks.json` (default: Atlantic testnet,
-> chainId `688689`).
+> **Network Configuration**: Sentinel targets Pharos **Atlantic testnet** (chainId
+> `688689`) — the engine's default network in `assets/networks.json` — passing that
+> RPC to each `cast --rpc-url` read.
 >
-> **Private Key**: NOT required. Sentinel is read-only — it performs no writes,
-> so no `--private-key` is ever passed.
+> **Private Key**: NOT required. Sentinel is read-only — it performs no writes and
+> only ever runs `cast call` / `code` / `storage`, so no `--private-key` is ever passed.
 
 > **Pre-check extension**: This skill runs as **Step 0** of the SKILL.md
 > "Write Operation Pre-checks" — before the private-key / address / network /
@@ -120,16 +120,16 @@ engine's security posture — it only ever blocks, never signs.
 
 ---
 
-## On-Chain Reads — Foundry (`cast`) Equivalents
+## On-Chain Reads — the `cast` commands Sentinel runs
 
-Sentinel is on-chain: it derives its verdict entirely from **read-only** calls to
-the same RPC the engine uses (`assets/networks.json` → default `atlantic-testnet`).
-It ships a self-contained Python runtime, but every signal it reads has a direct
-Foundry equivalent — there is no hidden network access, and an agent can reproduce
-any signal by hand with `cast`. All reads below are gasless and need no private key.
+Sentinel performs every read by executing read-only Foundry `cast` commands — the
+same toolchain as the rest of the Skill Engine — against the network's RPC
+(default `atlantic-testnet`). Nothing is signed and no private key is used
+(`cast call` / `code` / `storage` only, never `cast send`). These are the exact
+commands it runs, all gasless:
 
-| Sentinel signal | JSON-RPC method | Foundry equivalent |
-|-----------------|-----------------|--------------------|
+| Sentinel signal | underlying RPC | `cast` command Sentinel runs |
+|-----------------|----------------|------------------------------|
 | Contract vs EOA · bytecode opcode scan (SELFDESTRUCT / unguarded DELEGATECALL) · tiny-stub detection | `eth_getCode` | `cast code <target> --rpc-url $RPC` |
 | ERC-20 introspection (`name` / `symbol` / `decimals` / `totalSupply`) | `eth_call` | `cast call <target> "totalSupply()(uint256)" --rpc-url $RPC` |
 | Ownership concentration | `eth_call` | `cast call <target> "owner()(address)" --rpc-url $RPC` |

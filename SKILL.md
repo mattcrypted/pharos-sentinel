@@ -35,7 +35,7 @@ This package also bundles **Sentinel** — a read-only, pre-action **risk gate**
 2. **Configure Private Key**: Write operations (sending transactions, deploying contracts) require a private key, provided via one of the following:
    - Command argument: `--private-key <your_private_key>`
    - Environment variable: `$PRIVATE_KEY`
-3. **Python 3** (for the Sentinel risk pre-check only): the risk gate runs via `python sentinel_cli.py <address> <action>` and uses only the Python standard library plus the network's RPC endpoint. Verify with `python3 --version`. **No private key is ever passed to Sentinel** — it is read-only. (If Python 3 is unavailable, the Agent should tell the user it cannot run the safety pre-check rather than silently skipping it.)
+3. **Python 3** (for the Sentinel risk pre-check): the risk gate runs via `python sentinel_cli.py <address> <action>`. It performs its on-chain reads with the **Foundry `cast`** CLI from step 1 — so the only requirements are Foundry (already mandatory above) plus Python 3 and its standard library. Verify with `python3 --version`. **No private key is ever passed to Sentinel** — it is read-only (`cast call` / `cast code` / `cast storage` only, never `cast send`). (If `cast` or Python 3 is unavailable, the Agent should tell the user it cannot run the safety pre-check rather than silently skipping it.)
 
 ## Network Configuration
 
@@ -96,7 +96,7 @@ See the corresponding reference files for detailed error handling tables for eac
 
 - **Private Key Protection**: Never expose private keys in logs, chat history, or version control. Store the private key in the `$PRIVATE_KEY` environment variable and reference it explicitly in commands via `--private-key $PRIVATE_KEY`. Note: `forge` / `cast` do not automatically read environment variables; they must be explicitly passed as command arguments.
 - **Network Confirmation**: Before executing write operations, the Agent must clearly inform the user of the target network (testnet or mainnet). Mainnet operations require a prominent warning and user re-confirmation to prevent accidental operations.
-- **Sentinel is read-only**: the bundled risk gate performs only RPC *reads*, holds no private key, and NEVER signs or sends a transaction — it only ever blocks a risky action (exit `2`). Adding it changes nothing about the write path's security posture.
+- **Sentinel is read-only**: the bundled risk gate performs only read-only Foundry `cast` reads (`cast call` / `code` / `storage`), holds no private key, and NEVER signs or sends a transaction (never `cast send`) — it only ever blocks a risky action (exit `2`). Adding it changes nothing about the write path's security posture.
 
 ## Write Operation Pre-checks (Required for All Write Operations)
 

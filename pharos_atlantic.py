@@ -1,20 +1,25 @@
-"""Pharos Atlantic Testnet config + lightweight on-chain read helpers.
+"""Pharos Atlantic Testnet config + read-only on-chain helpers, executed via Foundry.
 
 Verified from docs.pharos.xyz/getting-started/network/atlantic-testnet (2026-06-10):
   RPC      : https://atlantic.dplabs-internal.com
   WSS      : wss://atlantic.dplabs-internal.com
   chainId  : 688689
   explorer : https://atlantic.pharosscan.xyz/
-  faucet   : via Pharos Discord/website (not a public URL in docs)
-  symbol   : PHRS (testnet gas token; confirm)
+  symbol   : PHRS (testnet gas token)
 
-Only stdlib + web3 used. If web3 isn't installed, helpers fall back to raw JSON-RPC.
+EXECUTION MODEL: every on-chain read is performed by the Foundry `cast` CLI — the
+same toolchain the rest of the Pharos Skill Engine uses — not a hand-rolled HTTP
+client. Dedicated subcommands back the risk reads (`cast code` / `cast call` /
+`cast storage` / `cast balance` / `cast nonce` / `cast chain-id`); `rpc()` is a
+thin wrapper over `cast rpc <method>` for the tx/receipt lookups the x402 gate
+needs. All reads are gasless and keyless — Sentinel never signs or sends a tx.
+Requires `cast` (Foundry) on PATH; install per the Skill Engine Prerequisites.
 """
 from __future__ import annotations
 import json
+import shutil
+import subprocess
 import time
-import urllib.error
-import urllib.request
 
 RPC_URL = "https://atlantic.dplabs-internal.com"
 WSS_URL = "wss://atlantic.dplabs-internal.com"
@@ -22,61 +27,89 @@ CHAIN_ID = 688689
 EXPLORER = "https://atlantic.pharosscan.xyz"
 SYMBOL = "PHRS"
 
+CAST = shutil.which("cast") or "cast"
 
-_TRANSIENT_HTTP = {429, 500, 502, 503, 504}
+# stderr fragments that indicate a transient RPC hiccup worth retrying with backoff
+_TRANSIENT = ("429", "502", "503", "504", "timed out", "timeout",
+              "rate limit", "error sending request", "connection")
+
+
+def _cast(args: list, *, timeout: int = 30) -> str:
+    """Run a read-only `cast` subcommand against Atlantic and return stripped stdout.
+
+    Raises RuntimeError on a cast error (e.g. `execution reverted` for a method the
+    target doesn't expose) — callers that treat that as "signal absent" wrap it in
+    try/except, exactly as before. Retries transient RPC throttling with backoff."""
+    cmd = [CAST, *args, "--rpc-url", RPC_URL]
+    last = ""
+    for attempt in range(4):
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            last = f"cast {args[0]} timed out"
+            if attempt < 3:
+                time.sleep(0.4 * 2 ** attempt)
+                continue
+            raise RuntimeError(last)
+        except FileNotFoundError:
+            raise RuntimeError("Foundry `cast` not found on PATH — install Foundry "
+                               "(see the Skill Engine Prerequisites)")
+        if p.returncode == 0:
+            return p.stdout.strip()
+        last = (p.stderr or "").strip()
+        if attempt < 3 and any(s in last.lower() for s in _TRANSIENT):
+            time.sleep(0.4 * 2 ** attempt)
+            continue
+        raise RuntimeError(last or f"cast {args[0]} failed")
 
 
 def rpc(method: str, params: list):
-    """Minimal JSON-RPC call (no deps), with backoff on transient RPC throttling
-    (HTTP 429/5xx and connection blips) so bursts of reads stay reliable."""
-    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    for attempt in range(5):
-        try:
-            req = urllib.request.Request(RPC_URL, data=body,
-                                         headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                out = json.loads(r.read().decode())
-            if "error" in out:
-                raise RuntimeError(out["error"])
-            return out.get("result")
-        except urllib.error.HTTPError as e:
-            if e.code in _TRANSIENT_HTTP and attempt < 4:
-                time.sleep(0.4 * 2 ** attempt)
-                continue
-            raise
-        except urllib.error.URLError:
-            if attempt < 4:
-                time.sleep(0.4 * 2 ** attempt)
-                continue
-            raise
+    """Generic JSON-RPC call executed through Foundry (`cast rpc <method> ...`).
+
+    Returns the decoded `result` (same shape a raw JSON-RPC client would give, with
+    hex fields preserved). Used for the tx/receipt lookups the x402 gate verifies."""
+    args = ["rpc", method]
+    for p in params:
+        args.append(p if isinstance(p, str) else json.dumps(p))
+    out = _cast(args)
+    if out == "":
+        return None
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        return out
+
+
+def get_code(address: str) -> str:
+    return _cast(["code", address]) or "0x"
 
 
 def is_contract(address: str) -> bool:
-    code = rpc("eth_getCode", [address, "latest"])
+    code = get_code(address)
     return bool(code) and code != "0x"
 
 
 def code_size(address: str) -> int:
-    code = rpc("eth_getCode", [address, "latest"])
+    code = get_code(address)
     return 0 if not code or code == "0x" else (len(code) - 2) // 2
 
 
 def balance_wei(address: str) -> int:
-    return int(rpc("eth_getBalance", [address, "latest"]), 16)
+    return int(_cast(["balance", address]))          # cast prints wei in decimal
 
 
 def tx_count(address: str) -> int:
-    return int(rpc("eth_getTransactionCount", [address, "latest"]), 16)
+    return int(_cast(["nonce", address]))            # cast prints nonce in decimal
 
 
 def chain_ok() -> bool:
     try:
-        return int(rpc("eth_chainId", []), 16) == CHAIN_ID
+        return int(_cast(["chain-id"])) == CHAIN_ID   # cast prints chain id in decimal
     except Exception:
         return False
 
 
-# --- Contract introspection (RPC-only: eth_call + eth_getStorageAt) ------------
+# --- Contract introspection (read-only `cast call` / `cast storage`) -----------
 # Function selectors (first 4 bytes of keccak256(signature)).
 SEL_TOTAL_SUPPLY = "0x18160ddd"   # totalSupply()
 SEL_DECIMALS     = "0x313ce567"   # decimals()
@@ -96,12 +129,13 @@ _OP_SELFDESTRUCT = 0xFF
 
 
 def eth_call(to: str, data: str) -> str:
-    """Raw eth_call; returns hex string (possibly '0x')."""
-    return rpc("eth_call", [{"to": to, "data": data}, "latest"]) or "0x"
+    """Read-only contract call via `cast call`; returns raw return hex (possibly '0x').
+    Raises (via _cast) if the method reverts — callers treat that as "not exposed"."""
+    return _cast(["call", to, data]) or "0x"
 
 
 def storage_at(address: str, slot: str) -> str:
-    return rpc("eth_getStorageAt", [address, slot, "latest"]) or "0x"
+    return _cast(["storage", address, slot]) or "0x"
 
 
 def _addr_from_word(word: str):
@@ -162,7 +196,7 @@ def is_minimal_proxy(address: str) -> bool:
     is elsewhere, so the target alone tells you little.
     """
     try:
-        code = (rpc("eth_getCode", [address, "latest"]) or "0x").lower()
+        code = get_code(address).lower()
     except Exception:
         return False
     return code.startswith("0x363d3d373d3d3d363d73") or "5af43d82803e903d91602b57fd5bf3" in code
@@ -246,7 +280,7 @@ def dangerous_opcodes(address):
     Proper opcode-aware scan, no disassembler dependency."""
     flags = {"delegatecall": False, "selfdestruct": False}
     try:
-        code = rpc("eth_getCode", [address, "latest"]) or "0x"
+        code = get_code(address)
         raw = bytes.fromhex(code[2:]) if code != "0x" else b""
     except Exception:
         return flags

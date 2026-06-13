@@ -8,12 +8,13 @@ Run (stdio MCP server):
     pip install -r requirements.txt
     python sentinel_skill.py
 
-The two tools below are the Skill's public surface. Risk logic (v2) is RPC-only:
-contract-vs-EOA, proxy detection (EIP-1167 minimal / EIP-1967+1822 upgradeable),
-ERC-20 introspection (symbol/decimals/supply), bytecode opcode analysis
-(SELFDESTRUCT / unguarded DELEGATECALL), ownership & upgrade-admin concentration
-(owner() + EIP-1967 admin, EOA vs contract), pausable state (paused()),
-tiny-bytecode stubs, and action/target mismatches. No external indexer or API.
+The two tools below are the Skill's public surface. Risk logic (v2) runs entirely
+on read-only Foundry `cast` reads: contract-vs-EOA, proxy detection (EIP-1167
+minimal / EIP-1967+1822 upgradeable), ERC-20 introspection (symbol/decimals/supply),
+bytecode opcode analysis (SELFDESTRUCT / unguarded DELEGATECALL), ownership &
+upgrade-admin concentration (owner() + EIP-1967 admin, EOA vs contract), pausable
+state (paused()), tiny-bytecode stubs, and action/target mismatches. No external
+indexer or API.
 """
 from __future__ import annotations
 
@@ -154,7 +155,7 @@ def risk_check(address: str, action: str = "transfer", amount_phrs: float = 0.0)
         amount_phrs: size of the action in PHRS (optional, for exposure context).
     Returns a dict: {verdict, score, reasons[], data{}}.
 
-    Signals (RPC-only, v2): contract vs EOA; EIP-1167 minimal and EIP-1967/1822
+    Signals (read-only `cast` reads, v2): contract vs EOA; EIP-1167 minimal and EIP-1967/1822
     upgradeable-proxy detection; ERC-20 introspection (symbol/decimals/supply,
     zero-supply trap); bytecode opcode analysis (SELFDESTRUCT / unguarded
     DELEGATECALL); ownership & upgrade-admin concentration (owner() + EIP-1967

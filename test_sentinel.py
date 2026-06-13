@@ -1,7 +1,8 @@
 """Offline, deterministic tests for the Sentinel Skill risk engine.
 
-No network: we monkeypatch `pharos_atlantic.rpc` with a fake chain, so the tests
-pin the verdict logic exactly and run anywhere (incl. a clean CI / Skill Scanner).
+No network, no Foundry: we monkeypatch `pharos_atlantic._cast` (the Foundry `cast`
+seam) for the risk engine and `pharos_atlantic.rpc` for the x402 tx/receipt reads,
+so the tests pin the verdict logic exactly and run anywhere (incl. a clean CI).
 
 Run:  python -m unittest -v test_sentinel
 """
@@ -81,32 +82,36 @@ CHAIN = {
 }
 
 
-def fake_rpc(method: str, params: list):
-    if method == "eth_chainId":
-        return hex(pharos.CHAIN_ID)
-    if method == "eth_call":
-        spec = CHAIN.get(params[0]["to"], {})
-        return spec.get("calls", {}).get(params[0]["data"], "0x")
-    addr = params[0]
+def fake_cast(args: list):
+    """Stand-in for `pharos._cast`: answers Foundry `cast` subcommands from the
+    fake chain. cast prints chain-id / nonce / balance in DECIMAL, code / call /
+    storage as 0x-hex — matched here so the parsers exercise real formats."""
+    cmd = args[0]
+    if cmd == "chain-id":
+        return str(pharos.CHAIN_ID)
+    if cmd == "call":
+        to, data = args[1], args[2]
+        return CHAIN.get(to, {}).get("calls", {}).get(data, "0x")
+    addr = args[1]
     spec = CHAIN.get(addr, {})
-    if method == "eth_getCode":
+    if cmd == "code":
         return spec.get("code", "0x")
-    if method == "eth_getTransactionCount":
-        return hex(spec.get("nonce", 0))
-    if method == "eth_getBalance":
-        return hex(spec.get("balance", 0))
-    if method == "eth_getStorageAt":
-        return spec.get("storage", {}).get(params[1].lower(), ZERO_WORD)
-    raise AssertionError(f"unexpected rpc {method}")
+    if cmd == "nonce":
+        return str(spec.get("nonce", 0))
+    if cmd == "balance":
+        return str(spec.get("balance", 0))
+    if cmd == "storage":
+        return spec.get("storage", {}).get(args[2].lower(), ZERO_WORD)
+    raise AssertionError(f"unexpected cast {args}")
 
 
 class RiskCheckTests(unittest.TestCase):
     def setUp(self):
-        self._orig = pharos.rpc
-        pharos.rpc = fake_rpc
+        self._orig = pharos._cast
+        pharos._cast = fake_cast
 
     def tearDown(self):
-        pharos.rpc = self._orig
+        pharos._cast = self._orig
 
     def verdict(self, *a, **k):
         return s.risk_check(*a, **k)["verdict"]
@@ -118,11 +123,11 @@ class RiskCheckTests(unittest.TestCase):
         self.assertEqual(r["score"], -1)
 
     def test_rpc_unreachable(self):
-        def boom(method, params):
-            if method == "eth_chainId":
+        def boom(args):
+            if args[0] == "chain-id":
                 raise RuntimeError("down")
-            return fake_rpc(method, params)
-        pharos.rpc = boom
+            return fake_cast(args)
+        pharos._cast = boom
         self.assertEqual(self.verdict(A_TOKEN), "unknown")
 
     # --- EOAs ---
@@ -215,11 +220,11 @@ class RiskCheckTests(unittest.TestCase):
 
 class ExecutionPlanTests(unittest.TestCase):
     def setUp(self):
-        self._orig = pharos.rpc
-        pharos.rpc = fake_rpc
+        self._orig = pharos._cast
+        pharos._cast = fake_cast
 
     def tearDown(self):
-        pharos.rpc = self._orig
+        pharos._cast = self._orig
 
     def test_safe_action_approved_full_size(self):
         p = s.execution_plan(A_TOKEN, "transfer", 10.0, max_risk="caution")

@@ -35,8 +35,9 @@ capabilities.
 
 - **Read-only by design.** Sentinel never holds keys and never sends a transaction — the safest
   possible posture for a Skill that agents trust before moving money.
-- **RPC-only, zero external infra.** No indexer, no third-party API, no keys, no database — just
-  JSON-RPC against a Pharos node. That makes it portable, cheap, and easy to audit.
+- **Foundry-native execution.** Every on-chain read runs through the Foundry `cast` CLI — the same
+  toolchain the rest of the Skill Engine uses — so Sentinel composes into the engine rather than
+  bolting a separate client onto it. No indexer, no third-party API, no keys, no database.
 - **Not just a verdict — a plan.** `execution_plan` returns approve/block plus bounded sizing
   within the caller's risk tolerance, so the agent gets a decision, not just a score.
 - **Real EVM depth.** Bytecode opcode analysis and proxy/ownership introspection, not surface
@@ -45,14 +46,14 @@ capabilities.
 ## How it works
 
 Sentinel sits between an agent and the chain. The agent declares an intent; Sentinel reads
-Pharos Atlantic over JSON-RPC (no keys, no transaction), scores what it finds, and returns a
-verdict, the reasons, and a risk-gated plan. The agent acts on the plan.
+Pharos Atlantic by executing read-only Foundry `cast` commands (no keys, no transaction), scores
+what it finds, and returns a verdict, the reasons, and a risk-gated plan. The agent acts on the plan.
 
 ```mermaid
 flowchart LR
     A["Pharos agent<br/>transfer · swap · approve · call"] -->|"address + action + amount"| S{{"Sentinel Skill<br/>risk_check / execution_plan"}}
-    S -->|"JSON-RPC reads · no keys · no tx"| C[("Pharos Atlantic<br/>chainId 688689")]
-    C -->|"code · storage · eth_call"| S
+    S -->|"cast reads · no keys · no tx"| C[("Pharos Atlantic<br/>chainId 688689")]
+    C -->|"cast code · call · storage"| S
     S -->|"verdict + reasons + plan"| D{verdict}
     D -->|safe| P["Proceed"]
     D -->|caution| R["Reduce size / confirm"]
@@ -68,7 +69,7 @@ sequenceDiagram
     participant Se as Sentinel
     participant Ch as Pharos Atlantic
     Ag->>Se: risk_check(addr, "approve", 100)
-    Se->>Ch: eth_getCode · eth_call · eth_getStorageAt
+    Se->>Ch: cast code · cast call · cast storage
     Ch-->>Se: bytecode · owner · impl slot · paused
     Se-->>Ag: verdict "caution" + reasons
     Ag->>Se: execution_plan(addr, "approve", 100, max_risk "safe")
@@ -85,7 +86,7 @@ sequenceDiagram
 
 `action` is one of `transfer` \| `swap` \| `approve` \| `call`.
 
-## Risk signals (v2 — RPC-only)
+## Risk signals (v2 — read via Foundry `cast`)
 
 - **Contract vs EOA**, and action/target mismatches (e.g. `approve` to a non-token, or to a wallet).
 - **Proxy detection:** EIP-1167 minimal proxies and EIP-1967/1822 **upgradeable** proxies
@@ -145,8 +146,11 @@ shell or agent can branch on the exit status alone. See `SKILL.md` for the skill
 
 ## Quickstart
 
+Live reads require **Foundry** (`cast`) on your PATH (`curl -L https://foundry.paradigm.xyz | bash && foundryup`).
+The offline tests and the `--synthetic` tour need neither Foundry nor network.
+
 ```bash
-python -m unittest test_sentinel   # 34 deterministic offline tests (no network)
+python -m unittest test_sentinel   # 34 deterministic offline tests (no network, no Foundry)
 python feature_tour.py --synthetic # walk every signal instantly (no network)
 python demo_agent.py               # an agent drives the Skill over MCP against live Atlantic
 python -c "import pharos_atlantic as p; print('chain_ok:', p.chain_ok())"
@@ -182,7 +186,7 @@ runbook (commands, suggested patter, expected output) in [`DEMO.md`](DEMO.md).
 
 ## Live on Pharos Atlantic
 
-Sentinel integrates with **Pharos Atlantic Testnet** over live JSON-RPC:
+Sentinel integrates with **Pharos Atlantic Testnet** via live Foundry `cast` reads:
 
 - RPC `https://atlantic.dplabs-internal.com` · chainId **688689** · explorer
   `https://atlantic.pharosscan.xyz` · gas token **PHRS**
@@ -264,23 +268,24 @@ python sentinel_x402.py   # read-only x402 gate on 127.0.0.1:4021
 python x402_demo.py       # 402 -> pay on Atlantic -> 200 verdict -> replay rejected
 ```
 
-The gate verifies payment with the **same RPC reads Sentinel uses for risk**, so the server
-stays read-only and keyless (only the client sends value) and adds **zero dependencies**. Full
-design and the official `@x402` SDK path: [`X402.md`](X402.md).
+The gate verifies payment with the **same Foundry `cast` reads Sentinel uses for risk**, so the
+server stays read-only and keyless (only the client sends value) and adds **no new dependencies**
+beyond Foundry + the Python stdlib. Full design and the official `@x402` SDK path: [`X402.md`](X402.md).
 
 ## Security posture
 
-The Skill module (`sentinel_skill.py` + `pharos_atlantic.py`) is intentionally minimal and
-auditable: **no shell execution, no filesystem access, no secrets or environment reads**, and all
-outbound traffic is a single hardcoded Pharos RPC endpoint (declared in `skill.json`). It is
-read-only and never sends a transaction.
+The Skill is intentionally minimal and auditable. It executes only **read-only Foundry `cast`
+commands** (`cast code` / `call` / `storage` / `balance` / `nonce` / `chain-id`, plus `cast rpc`
+for tx/receipt lookups) against a single Pharos RPC endpoint — the same execution model the rest
+of the Skill Engine uses. It **holds no private key, never signs or sends a transaction, makes no
+filesystem writes, and reads no secrets or environment** beyond the RPC URL.
 
 ## Files
 
 | File | Role |
 |------|------|
 | `sentinel_skill.py` | MCP server — tools `risk_check`, `execution_plan` |
-| `pharos_atlantic.py` | Pharos Atlantic config + dependency-free JSON-RPC read/introspection helpers |
+| `pharos_atlantic.py` | Pharos Atlantic config + read-only Foundry `cast` read/introspection helpers |
 | `sentinel_cli.py` | Thin CLI wrapper for SKILL.md / framework agents |
 | `SKILL.md` | Skill definition for Claude Code / OpenClaw / Codex |
 | `demo.py` | Live demo driver — one subcommand per on-chain feature (deploy/upgrade/pause/transfer/x402) |

@@ -11,8 +11,8 @@ the documented Pharos x402 flow:
 Settlement follows Pharos's *native* model (docs.pharos.xyz/developer-guide/x402):
 "the client sends a micro-token transfer to a specified address -> the server
 verifies the transaction -> the resource is returned." Sentinel verifies that
-payment with the **same RPC reads it already uses for risk** — so the server
-stays read-only and dependency-free (the client, not the server, sends value).
+payment through the **same Foundry `cast` toolchain it uses for risk** — so the
+server stays read-only and keyless (the client, not the server, sends value).
 For full @x402 SDK-client interop via the EIP-3009 "exact" scheme, see X402.md.
 
 Run:

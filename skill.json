@@ -2,7 +2,7 @@
   "name": "sentinel",
   "version": "0.1.0",
   "title": "Sentinel — Pre-action On-chain Risk Skill",
-  "description": "A reusable Pharos AgentSkill that any agent calls before moving value: returns a risk verdict (safe/caution/dangerous) + reasons, and a risk-gated execution plan. Reads Pharos Atlantic on-chain data.",
+  "description": "A reusable Pharos AgentSkill that any agent calls before moving value: returns a risk verdict (safe/caution/dangerous) + reasons, and a risk-gated execution plan. Reads Pharos Atlantic on-chain data via read-only Foundry cast commands (cast call/code/storage); never signs or sends a transaction.",
   "protocol": "mcp",
   "entrypoint": "python sentinel_skill.py",
   "chain": {
@@ -13,7 +13,7 @@
   "tools": [
     {
       "name": "risk_check",
-      "summary": "Assess risk of interacting with an address. RPC-only signals: contract-vs-EOA, EIP-1167/1967/1822 proxy detection, bytecode opcode analysis (SELFDESTRUCT/unguarded DELEGATECALL), ownership & upgrade-admin concentration (owner()+EIP-1967 admin, EOA vs contract), ERC-20 introspection (symbol/decimals/supply, zero-supply trap), pausable state, tiny-bytecode stubs, and action/target mismatches.",
+      "summary": "Assess risk of interacting with an address. On-chain signals read via read-only Foundry cast: contract-vs-EOA, EIP-1167/1967/1822 proxy detection, bytecode opcode analysis (SELFDESTRUCT/unguarded DELEGATECALL), ownership & upgrade-admin concentration (owner()+EIP-1967 admin, EOA vs contract), ERC-20 introspection (symbol/decimals/supply, zero-supply trap), pausable state, tiny-bytecode stubs, and action/target mismatches.",
       "inputs": {"address": "string", "action": "transfer|swap|approve|call", "amount_phrs": "number?"},
       "returns": {"verdict": "safe|caution|dangerous|unknown", "score": "number", "reasons": "string[]", "data": "object"}
     },
