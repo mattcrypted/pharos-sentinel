@@ -45,6 +45,33 @@
   .subh{font-family:var(--disp);font-weight:500;font-size:27px;line-height:1.12;letter-spacing:-.4px;color:var(--muted);margin:14px auto 0}
   .lede{max-width:644px;margin:16px auto 0;color:var(--muted);font-size:17px}
   .lede b{color:var(--tx);font-weight:500}
+  /* hero split — boxed thesis (left) + live motion panel (right), LICTOR-style */
+  .story{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:920px;margin:28px auto 0;text-align:left;align-items:stretch}
+  .thesis{background:var(--panel);border:1px solid var(--line2);border-left:2px solid var(--accent);
+          border-radius:12px;padding:20px 22px;display:flex;align-items:center}
+  .thesis p{color:var(--muted);font-size:15.5px;line-height:1.62;margin:0}
+  .thesis b{color:var(--tx);font-weight:500}
+  .storyviz{background:var(--panel);border:1px solid var(--line2);border-radius:12px;overflow:hidden;
+            font-family:var(--mono);display:flex;flex-direction:column}
+  .sv-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .sv-h .tag{display:flex;align-items:center;gap:7px}
+  .sv-body{position:relative;flex:1}
+  .sv-row{display:flex;justify-content:space-between;padding:8px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+  .sv-row:first-child{border-top:none}
+  .sv-ok{color:var(--safe)}
+  .sv-scan{position:absolute;left:0;right:0;top:0;height:30px;pointer-events:none;
+           background:linear-gradient(180deg,transparent,rgba(91,140,255,.18),transparent);
+           border-top:1px solid rgba(91,140,255,.55);animation:svScan 3.6s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes svScan{0%{transform:translateY(-8px);opacity:0}8%{opacity:1}56%{opacity:1}68%{transform:translateY(150px);opacity:0}100%{opacity:0}}
+  .sv-verdict{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-top:1px solid var(--line2);font-size:12px;color:var(--muted)}
+  .sv-chip-wrap{position:relative;min-width:104px;height:20px}
+  .sv-scanning,.sv-chip{position:absolute;right:0;top:0;height:20px;display:inline-flex;align-items:center}
+  .sv-scanning{color:var(--dim);animation:svScanning 3.6s ease-in-out infinite}
+  .sv-chip{padding:1px 11px;border-radius:999px;border:1px solid rgba(251,94,94,.55);color:var(--danger);font-size:11px;letter-spacing:1px;opacity:0;animation:svChip 3.6s ease-in-out infinite}
+  @keyframes svScanning{0%,52%{opacity:1}62%,100%{opacity:0}}
+  @keyframes svChip{0%,60%{opacity:0;transform:scale(.92)}70%{opacity:1;transform:scale(1)}92%{opacity:1}100%{opacity:0}}
+  @media(max-width:680px){.story{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){.sv-scan{animation:none;opacity:0}.sv-scanning{display:none}.sv-chip{opacity:1;animation:none}}
   /* console */
   .console{margin:40px auto 0;max-width:860px;text-align:left;background:var(--panel);
            border:1px solid var(--line2);border-radius:14px;overflow:hidden}
@@ -201,9 +228,25 @@
     <span class="kick">Reusable AgentSkill · Pharos Atlantic</span>
     <h1>The Skill your agent calls<br><span class="g">before it moves value.</span></h1>
     <p class="subh">Name an address. Sentinel judges it.</p>
-    <p class="lede">Sentinel is the pre-action risk Skill an onchain agent calls before it signs. It reads the
-      target <b>cold</b> (bytecode, storage, ownership, token state) and returns a <b>safe / caution / dangerous</b>
-      verdict with reasons.</p>
+    <div class="story">
+      <div class="thesis">
+        <p>Sentinel is the pre-action risk Skill an onchain agent calls before it signs. It reads the
+          target <b>cold</b> (bytecode, storage, ownership, token state) and returns a <b>safe / caution / dangerous</b>
+          verdict with reasons.</p>
+      </div>
+      <div class="storyviz" aria-hidden="true">
+        <div class="sv-h"><span class="tag"><span class="dot"></span>sentinel · risk_check</span><span>agent → Sentinel</span></div>
+        <div class="sv-body">
+          <div class="sv-scan"></div>
+          <div class="sv-row"><span>bytecode</span><span class="sv-ok">read ✓</span></div>
+          <div class="sv-row"><span>storage slots</span><span class="sv-ok">read ✓</span></div>
+          <div class="sv-row"><span>ownership</span><span class="sv-ok">read ✓</span></div>
+          <div class="sv-row"><span>token state</span><span class="sv-ok">read ✓</span></div>
+        </div>
+        <div class="sv-verdict"><span>verdict</span><span class="sv-chip-wrap"><span class="sv-scanning">scanning…</span><span class="sv-chip">DANGEROUS</span></span></div>
+      </div>
+    </div>
+
     <p class="lede"><b>The gate below is that Skill running live</b>. Drop in an address (try the
       <b>Backdoor</b>) and you see exactly what an agent sees when it calls Sentinel.</p>
 
