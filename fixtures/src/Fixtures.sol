@@ -121,8 +121,8 @@ contract MutableProxy {
 
 // --- LIVE PAUSE FLIP: operational state the operator can toggle after the fact -
 // `admin` is private (no owner()/admin() getter), so before the flip Sentinel
-// sees only the latent SELFDESTRUCT (+25, below the caution line). When the
-// operator pauses it, the live +20 tips the verdict over to caution.
+// sees only the latent SELFDESTRUCT (−25 -> safety 75, still in the safe band).
+// When the operator pauses it, the live −20 tips the verdict over to caution.
 contract Destructible {
     address private admin;
     bool public paused;            // paused() getter — Sentinel reads this live

@@ -20,7 +20,7 @@ Skill itself never signs — only this demo consumer does.
 | # | Command | Feature it proves | What the room sees |
 |---|---|---|---|
 | 0 | `python demo.py gallery`  | detection across the risk spectrum (read-only) | 6 live contracts → a safe→caution→dangerous ladder |
-| 1 | `python demo.py deploy`   | flags freshly-deployed malicious bytecode | a brand-new contract → **DANGEROUS (70)** |
+| 1 | `python demo.py deploy`   | flags freshly-deployed malicious bytecode | a brand-new contract → **DANGEROUS (30)** |
 | 2 | `python demo.py upgrade`  | catches a live upgrade-rug | same proxy address: **safe → caution** after the implementation swap |
 | 3 | `python demo.py pause`    | tracks live operational state | same contract: **safe → caution** the moment it's paused |
 | 4 | `python demo.py transfer` | the gate moves real value | `safe` target → **0.0005 PHRS actually sent**; `dangerous` → no tx |

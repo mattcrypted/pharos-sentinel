@@ -224,7 +224,7 @@ address* before and after:
 
 | | Implementation | Verdict | What Sentinel sees |
 |---|---|:--:|---|
-| **Before** | benign logic | 🟢 safe (20) | upgradeable — *owner can swap the logic after you interact* |
+| **Before** | benign logic | 🟢 safe (80) | upgradeable — *owner can swap the logic after you interact* |
 | **After** ([upgrade tx](https://atlantic.pharosscan.xyz/tx/0xc7e58da048465c0ecefbf5bc52f5a16ec0b828f529b2f379aa9fb562076cebc0)) | hostile logic | 🟡 caution (50) | + an EOA owner now holds privileged control + the contract is now PAUSED |
 
 The proxy address never changed —
@@ -236,13 +236,13 @@ moment it lands. The warning it prints *before* an attack is the risk that *beco
 ### Live pause flip — Sentinel tracks operational state
 
 A second live mutation, on a plain (non-proxy) contract. It carries a latent `SELFDESTRUCT`
-(25 — below the caution line on its own); the operator then **pauses it in a single transaction**,
+(−25 — safety 75, still inside the safe band on its own); the operator then **pauses it in a single transaction**,
 and Sentinel, reading state at call time, tips to caution:
 
 | | `paused()` | Verdict | What Sentinel sees |
 |---|:--:|:--:|---|
-| **Before** | — | 🟢 safe (25) | latent SELFDESTRUCT |
-| **After** ([pause tx](https://atlantic.pharosscan.xyz/tx/0x97cad956c6242317be9ef8129a78e4335797014f72ff2e9499862c667bb88734)) | true | 🟡 caution (45) | + the contract is now PAUSED |
+| **Before** | — | 🟢 safe (75) | latent SELFDESTRUCT |
+| **After** ([pause tx](https://atlantic.pharosscan.xyz/tx/0x97cad956c6242317be9ef8129a78e4335797014f72ff2e9499862c667bb88734)) | true | 🟡 caution (55) | + the contract is now PAUSED |
 
 Same contract — [`0xE84f…410B`](https://atlantic.pharosscan.xyz/address/0xE84f51f6D4146bC3c676A190B8988EA9B2Db410B) —
 different live state, different verdict.

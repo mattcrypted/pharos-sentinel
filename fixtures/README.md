@@ -18,7 +18,7 @@ against the chain and fails on drift.
 | `LogicV1` + `Eip1967Proxy` | EIP-1967 upgradeable proxy, initialized paused with an EOA owner | upgradeable + EOA owner + paused → `caution` |
 | `Backdoor` | latent `SELFDESTRUCT` + unguarded `DELEGATECALL` + paused + EOA owner | the dangerous stack → `dangerous` |
 | `LogicBenign` + `MutableProxy` | the **live upgrade attack**: benign logic swapped to hostile in one tx | `upgradeable_impl` changes; verdict escalates |
-| `Destructible` | the **live pause flip**: latent `SELFDESTRUCT`, then paused via one tx | `safe (25)` → `caution (45)` |
+| `Destructible` | the **live pause flip**: latent `SELFDESTRUCT`, then paused via one tx | `safe (75)` → `caution (55)` |
 
 The EIP-1167 **minimal proxy** exhibit is deployed as raw init code pointing at `CleanToken`
 (it has no Solidity source of its own — it is the canonical 45-byte minimal-proxy runtime).

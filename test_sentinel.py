@@ -177,7 +177,7 @@ class RiskCheckTests(unittest.TestCase):
     def test_minimal_proxy_flagged_but_safe_for_call(self):
         r = s.risk_check(A_MINIMAL, "call")
         self.assertTrue(r["data"].get("minimal_proxy"))
-        self.assertEqual(r["verdict"], "safe")  # 10 < caution band
+        self.assertEqual(r["verdict"], "safe")  # +10 risk -> safety 90, safe
 
     # --- stubs / routers ---
     def test_tiny_stub_call_is_caution(self):
@@ -211,7 +211,7 @@ class RiskCheckTests(unittest.TestCase):
     def test_owner_eoa_flagged_but_transfer_safe(self):
         r = s.risk_check(A_OWNED, "transfer")
         self.assertEqual(r["data"].get("owner"), A_EOA_USED)
-        self.assertEqual(r["verdict"], "safe")  # +10 alone stays under the caution band
+        self.assertEqual(r["verdict"], "safe")  # +10 risk alone -> safety 90, still safe
 
     def test_paused_contract_flagged(self):
         r = s.risk_check(A_PAUSED, "transfer")
