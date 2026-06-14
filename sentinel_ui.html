@@ -136,6 +136,24 @@
   footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 0 60px;font-family:var(--mono);
          font-size:12px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
   @media(max-width:680px){h1{font-size:40px}.metrics{grid-template-columns:repeat(2,1fr)}.step{grid-template-columns:1fr;gap:8px}}
+  /* --- motion (CSS + vanilla JS, no deps): scroll-reveal, verdict draw-on + scanline, staggered findings --- */
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  #out{position:relative;--vc:var(--accent)}
+  #out .draw,#out .scan{position:absolute;left:0;pointer-events:none;z-index:3;opacity:0;height:2px;width:100%}
+  #out .draw{top:0;transform:scaleX(0);transform-origin:left;background:linear-gradient(90deg,var(--vc),transparent)}
+  #out .scan{top:0;background:linear-gradient(90deg,transparent,var(--vc),transparent)}
+  #out.swept .draw{animation:drawx .55s cubic-bezier(.4,0,.2,1) forwards}
+  #out.swept .scan{animation:scanline 1.15s cubic-bezier(.4,0,.2,1)}
+  @keyframes drawx{0%{opacity:1;transform:scaleX(0)}100%{opacity:1;transform:scaleX(1)}}
+  @keyframes scanline{0%{top:0;opacity:0}12%{opacity:.85}88%{opacity:.85}100%{top:100%;opacity:0}}
+  .v-find .find{opacity:0;transform:translateX(-7px);animation:findIn .45s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes findIn{to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    #out .draw,#out .scan{display:none}
+    .v-find .find{opacity:1;transform:none;animation:none}
+  }
 </style>
 </head>
 <body>
@@ -176,6 +194,7 @@
         </div>
         <pre id="log"></pre>
         <div id="out">
+          <span class="draw"></span><span class="scan"></span>
           <div class="v-top" id="vtop">
             <div class="v-word" id="vword"><span class="led"></span><span id="vtext">—</span></div>
             <div class="v-score"><span class="n" id="snum">—</span><span class="l">SAFETY SCORE</span></div>
@@ -304,6 +323,15 @@
   const ADDR_RE=/^0x[0-9a-fA-F]{40}$/;
   const STEPS=["READING BYTECODE","SCANNING OPCODES","PROBING PROXY SLOTS","CHECKING OWNER","CHECKING PAUSE STATE","INTROSPECTING ERC-20"];
   const short=a=>a.slice(0,10)+"…"+a.slice(-6);
+  const reduced=()=>window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+  function countTo(el,target){
+    if(target<0||isNaN(target)){el.textContent="—";return;}
+    if(reduced()){el.textContent=target;return;}
+    const dur=650;let t0=null;
+    function step(t){if(t0===null)t0=t;const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);
+      el.textContent=Math.round(target*e);if(k<1)requestAnimationFrame(step);}
+    requestAnimationFrame(step);
+  }
 
   const FIX=[
     {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
@@ -336,10 +364,11 @@
     const v=(r.verdict||"unknown").toLowerCase();
     $("#vtop").className="v-top "+v;
     $("#vtext").textContent=v.toUpperCase();
-    $("#snum").textContent=(r.score!=null&&r.score>=0)?r.score:"—";
+    countTo($("#snum"),(r.score!=null&&r.score>=0)?r.score:-1);
     $("#vmeta").textContent="TARGET "+addr+"   ·   ACTION "+$("#action").value.toUpperCase();
     const tags=$("#tags");tags.innerHTML="";
-    (r.reasons||[]).forEach(w=>{const d=document.createElement("div");d.className="find";
+    (r.reasons||[]).forEach((w,i)=>{const d=document.createElement("div");d.className="find";
+      d.style.animationDelay=(i*70)+"ms";
       d.innerHTML='<span class="b">▸</span><span></span>';d.lastChild.textContent=w;tags.appendChild(d);});
     const d=r.data||{},p=[];
     if("is_contract" in d)p.push(d.is_contract?"CONTRACT":"EOA / WALLET");
@@ -349,7 +378,10 @@
     if(d.selfdestruct)p.push("SELFDESTRUCT");if(d.delegatecall)p.push("DELEGATECALL");
     if(d.paused)p.push("PAUSED");if(d.owner)p.push("OWNER "+short(d.owner));
     $("#vread").innerHTML=p.length?'<span class="t">READOUT</span>'+p.map(x=>"<span>"+x+"</span>").join(""):"";
-    $("#out").style.display="block";
+    const out=$("#out");
+    out.style.setProperty("--vc","var(--"+(v==="dangerous"?"danger":v==="caution"?"caution":v==="safe"?"safe":"neutral")+")");
+    out.style.display="block";
+    out.classList.remove("swept");void out.offsetWidth;out.classList.add("swept");  // replay draw-on + scanline
   }
 
   async function scan(){
@@ -371,6 +403,17 @@
   document.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{
     $("#addr").value=c.dataset.a;$("#action").value=c.dataset.act;
     document.getElementById("gate").scrollIntoView({block:"center"});scan();}));
+
+  // scroll-reveal: sections fade + rise as they enter the viewport (LICTOR-style)
+  (function(){
+    if(reduced()||!("IntersectionObserver" in window))return;  // no-JS / reduced-motion: content stays visible
+    const els=[...document.querySelectorAll(".step,.sec-head,.metric,.card,.close")];
+    els.forEach((el,i)=>{el.classList.add("reveal");el.style.transitionDelay=((i%4)*60)+"ms";});
+    const io=new IntersectionObserver(es=>es.forEach(e=>{
+      if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}
+    }),{threshold:.12,rootMargin:"0px 0px -8% 0px"});
+    els.forEach(el=>io.observe(el));
+  })();
 </script>
 </body>
 </html>
