@@ -111,13 +111,6 @@
             width:44px;height:44px;display:grid;place-items:center}
   .step h3{font-family:var(--disp);font-weight:500;font-size:19px;margin-bottom:6px}
   .step p{color:var(--muted);font-size:15px;max-width:560px}
-  .pane{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
-        padding:13px 15px;font-family:var(--mono);font-size:12.5px;color:var(--muted);overflow-x:auto}
-  .pane .k{color:var(--accent2)} .pane .ok{color:var(--safe)} .pane .warn{color:var(--caution)} .pane .bad{color:var(--danger)}
-  .pane .row{display:flex;justify-content:space-between;gap:14px;padding:3px 0;white-space:nowrap}
-  .bands{display:flex;gap:8px;flex-wrap:wrap}
-  .band{flex:1;min-width:120px;border:1px solid var(--line2);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12px}
-  .band .r{font-size:11px;color:var(--dim)}
   /* gallery */
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:26px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px}
@@ -226,11 +219,6 @@
       <div>
         <h3>Read the chain</h3>
         <p>Sentinel pulls the target's bytecode, proxy storage slots, and token calls — all read-only, all through Foundry.</p>
-        <div class="pane">
-          <div class="row"><span><span class="k">cast code</span> 0x75fb…35d</span><span class="ok">515 bytes</span></div>
-          <div class="row"><span><span class="k">cast storage</span> …impl slot (EIP-1967)</span><span class="ok">read</span></div>
-          <div class="row"><span><span class="k">cast call</span> "paused()(bool)"</span><span class="warn">true</span></div>
-        </div>
       </div>
     </div>
 
@@ -239,12 +227,6 @@
       <div>
         <h3>Detect the signals</h3>
         <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics. Each one found subtracts from the safety score.</p>
-        <div class="pane">
-          <div class="row"><span>SELFDESTRUCT in bytecode</span><span class="bad">found · −25</span></div>
-          <div class="row"><span>DELEGATECALL outside a proxy</span><span class="bad">found · −15</span></div>
-          <div class="row"><span>owner() is an EOA</span><span class="warn">found · −10</span></div>
-          <div class="row"><span>contract paused</span><span class="warn">found · −20</span></div>
-        </div>
       </div>
     </div>
 
@@ -253,7 +235,6 @@
       <div>
         <h3>Score it</h3>
         <p>Every check starts at a perfect 100; each signal subtracts from it, so multiple small risks pull the safety score down.</p>
-        <div class="pane"><div class="row"><span>100 − 25 − 15 − 10 − 20</span><span class="bad">= 30</span></div></div>
       </div>
     </div>
 
@@ -261,12 +242,7 @@
       <div class="no">04</div>
       <div>
         <h3>The verdict</h3>
-        <p>A band turns the score into a decision an agent can act on directly.</p>
-        <div class="bands">
-          <div class="band"><span class="t-safe">SAFE</span><div class="r">score ≥ 66</div></div>
-          <div class="band"><span class="t-caution">CAUTION</span><div class="r">31 – 65</div></div>
-          <div class="band"><span class="t-dangerous">DANGEROUS</span><div class="r">≤ 30</div></div>
-        </div>
+        <p>A band turns the score into a clear decision — <span class="t-safe">safe</span>, <span class="t-caution">caution</span>, or <span class="t-dangerous">dangerous</span> — an agent can act on directly.</p>
       </div>
     </div>
 
@@ -275,11 +251,6 @@
       <div>
         <h3>Always the reasons</h3>
         <p>Never just a number. Every verdict carries the human-readable why — the audit trail behind the call.</p>
-        <div class="pane">
-          <div class="row"><span class="bad">▸ bytecode contains SELFDESTRUCT — can be destroyed</span></div>
-          <div class="row"><span class="bad">▸ unguarded DELEGATECALL — can run external code</span></div>
-          <div class="row"><span class="warn">▸ single EOA owner holds privileged control</span></div>
-        </div>
       </div>
     </div>
 
@@ -287,11 +258,7 @@
       <div class="no">06</div>
       <div>
         <h3>Gate the action</h3>
-        <p><span class="mono">execution_plan</span> turns the verdict into approve/block plus a de-risked size — so value moves only when it's safe to.</p>
-        <div class="pane">
-          <div class="row"><span>safe target · transfer</span><span class="ok">APPROVED → full size</span></div>
-          <div class="row"><span>dangerous target · approve</span><span class="bad">BLOCKED → no tx signed</span></div>
-        </div>
+        <p>The verdict becomes an action — approve or block, plus a de-risked size — so value moves only when it's safe to.</p>
       </div>
     </div>
   </section>
