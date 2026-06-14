@@ -1,5 +1,7 @@
 # Sentinel — a pre-action on-chain risk gate for Pharos agents
 
+**🔗 Live demo:** **[pharos-sentinel-production.up.railway.app](https://pharos-sentinel-production.up.railway.app)** — run the risk gate against the live Atlantic fixtures (each `/check` executes real Foundry `cast` reads on Pharos Atlantic testnet).
+
 This repository ships the **Pharos Skill Engine** with **Sentinel** added as its
 **Step 0 — risk pre-check**. The engine
 ([`PharosNetwork/pharos-skill-engine`](https://github.com/PharosNetwork/pharos-skill-engine))
