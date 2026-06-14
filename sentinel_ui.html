@@ -111,6 +111,43 @@
             width:44px;height:44px;display:grid;place-items:center}
   .step h3{font-family:var(--disp);font-weight:500;font-size:19px;margin-bottom:6px}
   .step p{color:var(--muted);font-size:15px;max-width:560px}
+  /* --- pipeline step motion graphics (inline SVG + CSS keyframes, no deps) --- */
+  .viz{margin-top:16px;max-width:560px;height:104px;border:1px solid var(--line);border-radius:10px;
+       background:linear-gradient(180deg,var(--panel),var(--bg));overflow:hidden}
+  .viz svg{display:block;width:100%;height:100%}
+  .viz .track{stroke:var(--line2);stroke-width:1.5;fill:none}
+  /* 01 read the chain — a read head sweeps the chain; blocks twinkle as it passes */
+  @keyframes vReadDot{0%{transform:translateX(34px)}100%{transform:translateX(512px)}}
+  .vReadDot{animation:vReadDot 2.8s cubic-bezier(.45,.02,.55,.98) infinite}
+  @keyframes vTwinkle{0%,100%{fill:var(--line2)}50%{fill:var(--accent)}}
+  .vBlock{fill:var(--line2);animation:vTwinkle 2.8s ease-in-out infinite}
+  /* 02 detect the signals — radar sweep + blips */
+  @keyframes vSweep{to{transform:rotate(360deg)}}
+  .vSweep{transform-box:view-box;transform-origin:280px 54px;animation:vSweep 2.8s linear infinite}
+  @keyframes vBlip{0%,55%{opacity:0;transform:scale(.3)}68%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(2.2)}}
+  .vBlip{transform-box:fill-box;transform-origin:center;animation:vBlip 2.8s ease-out infinite}
+  .vBlip.b2{animation-delay:1.2s}
+  /* 03 score it — meter drops as risk stacks, colour shifts green->red */
+  @keyframes vFill{0%{transform:scaleX(.95);fill:var(--safe)}46%{transform:scaleX(.28);fill:var(--danger)}56%{transform:scaleX(.28);fill:var(--danger)}100%{transform:scaleX(.95);fill:var(--safe)}}
+  .vFill{transform-box:fill-box;transform-origin:left center;animation:vFill 3.6s ease-in-out infinite}
+  /* 04 the verdict — three lamps, one lights at a time */
+  @keyframes vLamp{0%{opacity:.14}7%{opacity:1}27%{opacity:1}34%{opacity:.14}100%{opacity:.14}}
+  .vLamp{opacity:.14;animation:vLamp 3.9s ease-in-out infinite}
+  .vLamp.l2{animation-delay:-2.6s}.vLamp.l3{animation-delay:-1.3s}
+  /* 05 always the reasons — lines write in, caret blinks */
+  @keyframes vLine{0%,6%{transform:scaleX(0)}22%,90%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+  .vLine{transform-box:fill-box;transform-origin:left;animation:vLine 3.4s ease-in-out infinite}
+  .vLine.r2{animation-delay:.45s}.vLine.r3{animation-delay:.9s}
+  @keyframes vCaret{0%,100%{opacity:0}50%{opacity:1}}
+  .vCaret{animation:vCaret .9s steps(1,end) infinite}
+  /* 06 gate the action — token approaches, gate lifts, token passes, check flashes */
+  @keyframes vToken{0%{transform:translateX(26px)}38%{transform:translateX(250px)}54%{transform:translateX(250px)}92%,100%{transform:translateX(508px)}}
+  .vToken{animation:vToken 3.6s ease-in-out infinite}
+  @keyframes vGate{0%,32%{transform:translateY(0)}46%{transform:translateY(-30px)}66%{transform:translateY(-30px)}82%{transform:translateY(0)}100%{transform:translateY(0)}}
+  .vGate{transform-box:fill-box;transform-origin:center;animation:vGate 3.6s ease-in-out infinite}
+  @keyframes vOk{0%,56%{opacity:0}66%{opacity:1}88%{opacity:1}100%{opacity:0}}
+  .vOk{opacity:0;animation:vOk 3.6s ease-out infinite}
+  @media(prefers-reduced-motion:reduce){ .viz svg *{animation:none!important} .vLamp{opacity:1} }
   /* gallery */
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:26px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px}
@@ -219,6 +256,25 @@
       <div>
         <h3>Read the chain</h3>
         <p>Sentinel pulls the target's bytecode, proxy storage slots, and token calls — all read-only, all through Foundry.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <line class="track" x1="34" y1="62" x2="512" y2="62"/>
+            <rect class="vBlock" x="72"  y="50" width="3.5" height="24" style="animation-delay:-2.6s"/>
+            <rect class="vBlock" x="120" y="44" width="3.5" height="30" style="animation-delay:-2.3s"/>
+            <rect class="vBlock" x="168" y="54" width="3.5" height="20" style="animation-delay:-2.0s"/>
+            <rect class="vBlock" x="216" y="40" width="3.5" height="34" style="animation-delay:-1.7s"/>
+            <rect class="vBlock" x="264" y="50" width="3.5" height="24" style="animation-delay:-1.4s"/>
+            <rect class="vBlock" x="312" y="46" width="3.5" height="28" style="animation-delay:-1.1s"/>
+            <rect class="vBlock" x="360" y="52" width="3.5" height="22" style="animation-delay:-0.8s"/>
+            <rect class="vBlock" x="408" y="42" width="3.5" height="32" style="animation-delay:-0.5s"/>
+            <rect class="vBlock" x="456" y="50" width="3.5" height="24" style="animation-delay:-0.2s"/>
+            <rect x="500" y="44" width="30" height="34" rx="6" fill="none" stroke="var(--line2)"/>
+            <g class="vReadDot">
+              <circle cx="0" cy="62" r="11" fill="none" stroke="var(--accent)" opacity=".3"/>
+              <circle cx="0" cy="62" r="4.5" fill="var(--accent)"/>
+            </g>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -227,6 +283,20 @@
       <div>
         <h3>Detect the signals</h3>
         <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics. Each one found subtracts from the safety score.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <circle cx="280" cy="54" r="40" class="track"/>
+            <circle cx="280" cy="54" r="22" class="track" opacity=".55"/>
+            <line class="track" x1="240" y1="54" x2="320" y2="54" opacity=".4"/>
+            <line class="track" x1="280" y1="14" x2="280" y2="94" opacity=".4"/>
+            <g class="vSweep">
+              <path d="M280 54 L280 14 A40 40 0 0 1 309 23 Z" fill="var(--accent)" opacity=".14"/>
+              <line x1="280" y1="54" x2="280" y2="14" stroke="var(--accent)" stroke-width="1.5"/>
+            </g>
+            <circle class="vBlip" cx="316" cy="38" r="4" fill="var(--accent)"/>
+            <circle class="vBlip b2" cx="252" cy="72" r="4" fill="var(--danger)"/>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -235,6 +305,15 @@
       <div>
         <h3>Score it</h3>
         <p>Every check starts at a perfect 100; each signal subtracts from it, so multiple small risks pull the safety score down.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <rect x="40" y="48" width="480" height="12" rx="6" fill="var(--panel2)" stroke="var(--line)"/>
+            <rect class="vFill" x="40" y="48" width="480" height="12" rx="6" fill="var(--safe)"/>
+            <line class="track" x1="40"  y1="42" x2="40"  y2="66" opacity=".35"/>
+            <line class="track" x1="280" y1="44" x2="280" y2="64" opacity=".25"/>
+            <line class="track" x1="520" y1="42" x2="520" y2="66" opacity=".35"/>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -243,6 +322,22 @@
       <div>
         <h3>The verdict</h3>
         <p>A band turns the score into a clear decision — <span class="t-safe">safe</span>, <span class="t-caution">caution</span>, or <span class="t-dangerous">dangerous</span> — an agent can act on directly.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <g class="vLamp">
+              <circle cx="200" cy="52" r="21" fill="none" stroke="var(--safe)" opacity=".45"/>
+              <circle cx="200" cy="52" r="13" fill="var(--safe)"/>
+            </g>
+            <g class="vLamp l2">
+              <circle cx="280" cy="52" r="21" fill="none" stroke="var(--caution)" opacity=".45"/>
+              <circle cx="280" cy="52" r="13" fill="var(--caution)"/>
+            </g>
+            <g class="vLamp l3">
+              <circle cx="360" cy="52" r="21" fill="none" stroke="var(--danger)" opacity=".45"/>
+              <circle cx="360" cy="52" r="13" fill="var(--danger)"/>
+            </g>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -251,6 +346,17 @@
       <div>
         <h3>Always the reasons</h3>
         <p>Never just a number. Every verdict carries the human-readable why — the audit trail behind the call.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <path d="M40 28 l7 3.5 l-7 3.5 z" fill="var(--accent)" opacity=".7"/>
+            <path d="M40 49 l7 3.5 l-7 3.5 z" fill="var(--accent)" opacity=".7"/>
+            <path d="M40 70 l7 3.5 l-7 3.5 z" fill="var(--accent)" opacity=".7"/>
+            <rect class="vLine"    x="54" y="28" width="380" height="7" rx="3.5" fill="var(--line2)"/>
+            <rect class="vLine r2" x="54" y="49" width="300" height="7" rx="3.5" fill="var(--line2)"/>
+            <rect class="vLine r3" x="54" y="70" width="430" height="7" rx="3.5" fill="var(--line2)"/>
+            <rect class="vCaret" x="490" y="68" width="3" height="11" fill="var(--accent)"/>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -259,6 +365,16 @@
       <div>
         <h3>Gate the action</h3>
         <p>The verdict becomes an action — approve or block, plus a de-risked size — so value moves only when it's safe to.</p>
+        <div class="viz" aria-hidden="true">
+          <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
+            <line class="track" x1="26" y1="62" x2="520" y2="62" opacity=".5"/>
+            <rect x="246" y="30" width="5" height="50" rx="2" fill="var(--line2)"/>
+            <rect x="281" y="30" width="5" height="50" rx="2" fill="var(--line2)"/>
+            <rect class="vGate" x="246" y="40" width="40" height="7" rx="3" fill="var(--accent)"/>
+            <circle class="vToken" cx="0" cy="62" r="8" fill="var(--safe)"/>
+            <path class="vOk" d="M468 56 l7 9 l15 -19" fill="none" stroke="var(--safe)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
       </div>
     </div>
   </section>
