@@ -42,7 +42,8 @@
   .hero{padding:64px 0 24px;text-align:center}
   h1{font-family:var(--disp);font-weight:700;font-size:60px;line-height:1.02;letter-spacing:-1.5px;margin:18px 0 0}
   h1 .g{color:var(--dim)}
-  .lede{max-width:620px;margin:18px auto 0;color:var(--muted);font-size:17px}
+  .subh{font-family:var(--disp);font-weight:500;font-size:27px;line-height:1.12;letter-spacing:-.4px;color:var(--muted);margin:14px auto 0}
+  .lede{max-width:644px;margin:16px auto 0;color:var(--muted);font-size:17px}
   .lede b{color:var(--tx);font-weight:500}
   /* console */
   .console{margin:40px auto 0;max-width:860px;text-align:left;background:var(--panel);
@@ -165,7 +166,7 @@
   .close h2{font-size:34px}
   footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 0 60px;font-family:var(--mono);
          font-size:12px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
-  @media(max-width:680px){h1{font-size:40px}.metrics{grid-template-columns:repeat(2,1fr)}.step{grid-template-columns:1fr;gap:8px}}
+  @media(max-width:680px){h1{font-size:40px}.subh{font-size:20px}.metrics{grid-template-columns:repeat(2,1fr)}.step{grid-template-columns:1fr;gap:8px}}
   /* --- motion (CSS + vanilla JS, no deps): scroll-reveal, verdict draw-on + scanline, staggered findings --- */
   .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
   .reveal.in{opacity:1;transform:none}
@@ -197,10 +198,13 @@
 
 <div id="top" class="wrap">
   <header class="hero">
-    <span class="kick">Pre-action on-chain risk gate · Pharos Atlantic</span>
-    <h1>Name an address.<br><span class="g">Sentinel judges it.</span></h1>
-    <p class="lede">Before an agent moves value, Sentinel reads the target <b>cold</b> — bytecode, storage,
-      ownership, token state — and returns a verdict with the reasons. <b>No allowlist. No oracle. Just the chain.</b></p>
+    <span class="kick">Reusable AgentSkill · Pharos Atlantic</span>
+    <h1>The Skill your agent calls<br><span class="g">before it moves value.</span></h1>
+    <p class="subh">Name an address. Sentinel judges it.</p>
+    <p class="lede">Sentinel is the pre-action risk Skill an on-chain agent calls before it signs — it reads the
+      target <b>cold</b> (bytecode, storage, ownership, token state) and returns a <b>safe / caution / dangerous</b>
+      verdict with reasons. <b>The gate below is that Skill running live</b> — drop in an address (try the
+      <b>Backdoor</b>) and you see exactly what an agent sees when it calls Sentinel.</p>
 
     <div class="console" id="gate">
       <div class="console-h">
