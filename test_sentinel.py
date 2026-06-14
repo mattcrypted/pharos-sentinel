@@ -266,7 +266,7 @@ class X402Tests(unittest.TestCase):
             raise AssertionError(f"unexpected rpc {method}")
         return rpc
 
-    def _proof(self, txh="0xabc", network=None):
+    def _proof(self, txh="0x" + "ab" * 32, network=None):
         return {"network": network or x402.NETWORK, "txHash": txh}
 
     def test_header_roundtrip(self):
@@ -315,11 +315,20 @@ class X402Tests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("confirmed", reason)
 
+    def test_verify_malformed_txhash(self):
+        # a non-0x-64-hex txHash is rejected before any RPC read (no cast call made)
+        def boom(*_):
+            raise AssertionError("rpc must not be called for a malformed txHash")
+        pharos.rpc = boom
+        ok, reason, _ = x402.verify_payment(self._proof(txh="0xabc"), x402.payment_required(), set())
+        self.assertFalse(ok)
+        self.assertIn("malformed", reason)
+
     def test_verify_replay_rejected(self):
         pharos.rpc = self._chain_with_tx(x402.PAY_TO, x402.PRICE_WEI)
         seen = set()
-        ok1, _, _ = x402.verify_payment(self._proof("0xAbC"), x402.payment_required(), seen)
-        ok2, reason, _ = x402.verify_payment(self._proof("0xAbC"), x402.payment_required(), seen)
+        ok1, _, _ = x402.verify_payment(self._proof("0x" + "Ab" * 32), x402.payment_required(), seen)
+        ok2, reason, _ = x402.verify_payment(self._proof("0x" + "Ab" * 32), x402.payment_required(), seen)
         self.assertTrue(ok1)
         self.assertFalse(ok2)
         self.assertIn("replay", reason)

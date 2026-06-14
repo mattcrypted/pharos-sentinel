@@ -324,6 +324,19 @@ def is_paused(address):
         return None
 
 
+def _strip_metadata(raw: bytes) -> bytes:
+    """Drop the trailing Solidity CBOR metadata blob so its bytes aren't misread as
+    opcodes. The last 2 bytes are the metadata length, and the blob begins with a
+    CBOR map marker (0xa1..0xa3); only trim when both hold, else scan everything."""
+    if len(raw) < 2:
+        return raw
+    meta_len = int.from_bytes(raw[-2:], "big")
+    cut = len(raw) - 2 - meta_len
+    if 0 <= cut < len(raw) - 2 and raw[cut] in (0xa1, 0xa2, 0xa3):
+        return raw[:cut]
+    return raw
+
+
 def dangerous_opcodes(address):
     """Walk runtime bytecode (skipping PUSH immediates) and flag DELEGATECALL /
     SELFDESTRUCT — opcodes that let a contract run external code or destroy itself.
@@ -334,6 +347,7 @@ def dangerous_opcodes(address):
         raw = bytes.fromhex(code[2:]) if code != "0x" else b""
     except Exception:
         return flags
+    raw = _strip_metadata(raw)   # don't let trailing CBOR metadata masquerade as opcodes
     i, n = 0, len(raw)
     while i < n:
         op = raw[i]

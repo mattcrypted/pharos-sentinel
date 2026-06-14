@@ -8,13 +8,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Foundry (cast/forge) — the engine's mandated execution path.
+# Pinned to a known-good release for reproducible builds.
 RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="/root/.foundry/bin:${PATH}"
-RUN foundryup
+RUN foundryup --install v1.7.1
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install only the runtime dep (MCP SDK); demos' eth-account is not needed to serve.
+COPY requirements-runtime.txt .
+RUN pip install --no-cache-dir -r requirements-runtime.txt
 COPY . .
 
 # Hosts inject $PORT; bind all interfaces inside the container.

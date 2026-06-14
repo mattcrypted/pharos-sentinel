@@ -1,0 +1,4 @@
+# Runtime deps for the hosted UI image only. The deployed path
+# (sentinel_ui -> sentinel_skill -> pharos_atlantic) needs just the MCP SDK;
+# eth-account (tx signing) is only used by the demos — see requirements.txt.
+mcp>=1.2.0

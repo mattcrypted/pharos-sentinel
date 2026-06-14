@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -35,6 +36,7 @@ PRICE_WEI = int(os.environ.get("SENTINEL_PRICE_WEI", 10**15))  # 0.001 PHRS / qu
 # Receiving address only — the server never holds a key and never sends a tx.
 PAY_TO = os.environ.get("SENTINEL_PAY_TO", "0xda5B57Aee260B5245776a913eAD6C3dd902e20f0")
 RESOURCE = "/risk_check"
+_TXHASH_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")  # validate settlement tx hashes before any cast read
 
 # In-memory replay guard: each settlement tx unlocks exactly one query.
 _CONSUMED: set[str] = set()
@@ -74,6 +76,8 @@ def verify_payment(payload: dict, requirements: dict, seen: set) -> tuple[bool, 
     txh = payload.get("txHash")
     if not txh:
         return False, "missing settlement txHash", None
+    if not _TXHASH_RE.match(txh):
+        return False, "malformed settlement txHash (expected 0x + 64 hex)", None
     if txh.lower() in seen:
         return False, "payment already used (replay)", None
     try:
@@ -119,7 +123,10 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(parsed.query)
         address = (q.get("address") or [""])[0]
         action = (q.get("action") or ["transfer"])[0]
-        amount = float((q.get("amount") or ["0"])[0] or 0)
+        try:
+            amount = float((q.get("amount") or ["0"])[0] or 0)
+        except ValueError:
+            amount = 0.0
 
         req = payment_required()
         sig = self.headers.get("PAYMENT-SIGNATURE")
