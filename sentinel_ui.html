@@ -404,15 +404,36 @@
     $("#addr").value=c.dataset.a;$("#action").value=c.dataset.act;
     document.getElementById("gate").scrollIntoView({block:"center"});scan();}));
 
-  // scroll-reveal: sections fade + rise as they enter the viewport (LICTOR-style)
+  // scroll-reveal + metric count-up as sections enter the viewport (LICTOR-style)
   (function(){
     if(reduced()||!("IntersectionObserver" in window))return;  // no-JS / reduced-motion: content stays visible
     const els=[...document.querySelectorAll(".step,.sec-head,.metric,.card,.close")];
     els.forEach((el,i)=>{el.classList.add("reveal");el.style.transitionDelay=((i%4)*60)+"ms";});
     const io=new IntersectionObserver(es=>es.forEach(e=>{
-      if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}
+      if(!e.isIntersecting)return;
+      e.target.classList.add("in");
+      if(e.target.classList.contains("metric")){const n=e.target.querySelector(".n");
+        if(n&&/^\d+$/.test(n.textContent.trim()))countTo(n,parseInt(n.textContent,10));}
+      io.unobserve(e.target);
     }),{threshold:.12,rootMargin:"0px 0px -8% 0px"});
     els.forEach(el=>io.observe(el));
+  })();
+
+  // ambient: a typewriter caret cycles hints in the input so the hero is alive on load
+  (function(){
+    const inp=$("#addr"); if(!inp||reduced())return;
+    const hints=["0x… paste a contract or counterparty","try the Backdoor fixture below ↓","read any address on Pharos Atlantic"];
+    let h=0,i=0,del=false,stopped=false;
+    const stop=()=>{stopped=true;inp.setAttribute("placeholder","0x… contract or counterparty address");};
+    inp.addEventListener("focus",stop,{once:true}); inp.addEventListener("input",stop,{once:true});
+    (function loop(){
+      if(stopped)return;
+      const t=hints[h];
+      if(!del){i++; if(i>t.length){del=true; inp.setAttribute("placeholder",t+"▌"); setTimeout(loop,1500); return;}}
+      else{i--; if(i<0){del=false; h=(h+1)%hints.length; i=0;}}
+      inp.setAttribute("placeholder",t.slice(0,Math.max(0,i))+"▌");
+      setTimeout(loop, del?26:52);
+    })();
   })();
 </script>
 </body>
