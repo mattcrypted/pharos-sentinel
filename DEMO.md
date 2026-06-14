@@ -47,12 +47,14 @@ Skill itself never signs — only this demo consumer does.
   each time — that's the proof it's live, not a recording. Keep `https://atlantic.pharosscan.xyz` open.
 - Each on-chain feature costs a fraction of a PHRS in gas; `all` is well under 0.05 PHRS.
 
-## Last verified run (2026-06-11)
+## Last verified run (2026-06-13)
+
+Run via Foundry `cast` (the engine's execution model), end to end:
 
 | Feature | Transaction |
 |---|---|
-| deploy + detect | `0xd75525c724dcb39a5c1e4778ccacbce5b399c1ca0f69364125025a71e5b06802` |
-| upgrade attack  | `0x393cbb193bcd5abc941dfca74bb8b9aae9ad158e5829a71a382b477dd18e2b16` |
-| pause flip      | `0xe7834917263c453cc693313a29490613243fdac1adf0dbb0276a8db8d03a9270` |
-| value gate      | `0x5ab244229ebe802bbd5721b274513cc0872224ee7e7303c9c4932cf5a08dfafe` |
-| x402 paid query | `0x5c5fb941ceabf817a438c7ecc32ca1b77b22b22aa32441b38bb499105fb42a9c` |
+| deploy + detect | `0xae7251648e6a62048ba916a68e76f05c770fc5eb3f6a8ded31a62db81de16c6e` |
+| upgrade attack  | `0x3b7ffb8724876df7b153fd950a8a1525cc99612a46b33c1356585fa96951c4d0` |
+| pause flip      | `0xdb08129581fe6f06fd3e69c70ad2e3b8e8739d090fa407c94f85affd07be1cf0` |
+| value gate      | `0x251dd2d6c5aeef2f477963c79b37044d3a334d189a8aa872c638dbde27ed597d` |
+| x402 paid query | `0x2120e375006fe8ca46042e3f3bc096d4eb26dfc13c453435572135f1079c0535` |

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SENTINEL — pre-action on-chain risk gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0B0D; --panel:#101216; --panel2:#15181E; --line:#23272F; --line2:#2E333C;
+    --tx:#E8EAEE; --muted:#9AA1AC; --dim:#6A7180;
+    --accent:#5B8CFF; --accent2:#9FB7FF;
+    --safe:#34D399; --caution:#F5B301; --danger:#FB5E5E; --neutral:#7C8493;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --disp:'Space Grotesk',var(--sans); --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:var(--sans);line-height:1.6;
+       -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:var(--mono)}
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--safe);display:inline-block;
+       box-shadow:0 0 0 0 rgba(52,211,153,.5);animation:pulse 2.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.45)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  /* nav */
+  nav{position:sticky;top:0;z-index:20;background:rgba(10,11,13,.82);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;letter-spacing:1px}
+  .brand .mk{width:22px;height:22px;border:2px solid var(--accent);border-radius:6px;display:grid;place-items:center;
+             font-size:12px;color:var(--accent)}
+  .nav-links{display:flex;gap:26px;font-size:13px;color:var(--muted)}
+  .nav-links a:hover{color:var(--tx)}
+  .pill{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--muted);
+        border:1px solid var(--line2);border-radius:999px;padding:5px 12px;display:flex;align-items:center;gap:7px}
+  /* hero */
+  .hero{padding:64px 0 24px;text-align:center}
+  h1{font-family:var(--disp);font-weight:700;font-size:60px;line-height:1.02;letter-spacing:-1.5px;margin:18px 0 0}
+  h1 .g{color:var(--dim)}
+  .lede{max-width:620px;margin:18px auto 0;color:var(--muted);font-size:17px}
+  .lede b{color:var(--tx);font-weight:500}
+  /* console */
+  .console{margin:40px auto 0;max-width:860px;text-align:left;background:var(--panel);
+           border:1px solid var(--line2);border-radius:14px;overflow:hidden}
+  .console-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+             border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .console-h .tag{display:flex;gap:7px;align-items:center}
+  .console-b{padding:18px}
+  .field{display:flex;gap:10px;flex-wrap:wrap}
+  input,select{font-family:var(--mono);font-size:14px;background:var(--bg);color:var(--tx);
+        border:1px solid var(--line2);border-radius:9px;padding:12px 13px;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  #addr{flex:1;min-width:240px}
+  select{cursor:pointer}
+  .btn{font-family:var(--sans);font-weight:500;font-size:14px;border-radius:9px;padding:12px 20px;cursor:pointer;
+       border:1px solid transparent;background:var(--accent);color:#08111f;transition:filter .15s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.sec{background:var(--panel2);color:var(--tx);border-color:var(--line2)}
+  .btn.sec:hover{border-color:var(--accent)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel2);
+        border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer}
+  .chip:hover{border-color:var(--accent);color:var(--tx)}
+  /* scan log */
+  #log{display:none;margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+       padding:14px;font-family:var(--mono);font-size:13px;color:var(--safe);white-space:pre-wrap;min-height:120px}
+  #log .c{color:var(--dim)}
+  /* verdict */
+  #out{display:none;margin-top:16px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--bg)}
+  .v-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;flex-wrap:wrap;
+         border-bottom:1px solid var(--line)}
+  .v-word{font-family:var(--disp);font-weight:700;font-size:34px;letter-spacing:.5px;display:flex;align-items:center;gap:12px}
+  .v-word .led{width:13px;height:13px;border-radius:50%}
+  .v-score{text-align:right;font-family:var(--mono)}
+  .v-score .n{font-size:30px;font-weight:700;display:block;line-height:1}
+  .v-score .l{font-size:10px;letter-spacing:2px;color:var(--dim)}
+  .v-meta{padding:11px 20px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;
+          color:var(--muted);word-break:break-all}
+  .v-find{padding:14px 20px}
+  .v-find h4{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);font-weight:400;margin-bottom:10px}
+  .find{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--tx);padding:7px 0;border-top:1px solid var(--line)}
+  .find:first-of-type{border-top:none}
+  .find .b{color:var(--caution);flex:none}
+  .v-read{padding:12px 20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px}
+  .v-read .t{color:var(--dim);letter-spacing:2px;margin-right:6px}
+  .v-read span{display:inline-block;border:1px solid var(--line2);border-radius:6px;color:var(--muted);padding:3px 8px;margin:3px 5px 0 0}
+  .safe .led,.dotc.safe{background:var(--safe)} .safe .v-word,.t-safe{color:var(--safe)}
+  .caution .led{background:var(--caution)} .caution .v-word,.t-caution{color:var(--caution)}
+  .dangerous .led{background:var(--danger)} .dangerous .v-word,.t-dangerous{color:var(--danger)}
+  .unknown .led{background:var(--neutral)} .unknown .v-word{color:var(--neutral)}
+  /* metrics */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+           border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:48px 0 8px}
+  .metric{background:var(--bg);padding:18px 16px}
+  .metric .n{font-family:var(--mono);font-size:22px;font-weight:700}
+  .metric .l{font-size:12px;color:var(--dim);margin-top:3px}
+  /* sections */
+  section{padding:60px 0}
+  .sec-head{max-width:620px}
+  .sec-head .kick{margin-bottom:12px;display:block}
+  h2{font-family:var(--disp);font-weight:500;font-size:30px;letter-spacing:-.5px}
+  .sec-head p{color:var(--muted);margin-top:10px}
+  /* pipeline */
+  .step{display:grid;grid-template-columns:64px 1fr;gap:20px;padding:26px 0;border-top:1px solid var(--line)}
+  .step .no{font-family:var(--mono);font-size:13px;color:var(--accent);border:1px solid var(--line2);border-radius:8px;
+            width:44px;height:44px;display:grid;place-items:center}
+  .step h3{font-family:var(--disp);font-weight:500;font-size:19px;margin-bottom:6px}
+  .step p{color:var(--muted);font-size:15px;max-width:560px}
+  .pane{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:13px 15px;font-family:var(--mono);font-size:12.5px;color:var(--muted);overflow-x:auto}
+  .pane .k{color:var(--accent2)} .pane .ok{color:var(--safe)} .pane .warn{color:var(--caution)} .pane .bad{color:var(--danger)}
+  .pane .row{display:flex;justify-content:space-between;gap:14px;padding:3px 0;white-space:nowrap}
+  .bands{display:flex;gap:8px;flex-wrap:wrap}
+  .band{flex:1;min-width:120px;border:1px solid var(--line2);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12px}
+  .band .r{font-size:11px;color:var(--dim)}
+  /* gallery */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:26px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px}
+  .card:hover{border-color:var(--line2)}
+  .card .nm{font-family:var(--disp);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:space-between}
+  .vchip{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:3px 9px;border-radius:999px;border:1px solid}
+  .vchip.safe{color:var(--safe);border-color:rgba(52,211,153,.4)}
+  .vchip.caution{color:var(--caution);border-color:rgba(245,179,1,.4)}
+  .vchip.dangerous{color:var(--danger);border-color:rgba(251,94,94,.4)}
+  .card .d{font-size:13px;color:var(--muted);margin-top:8px;min-height:38px}
+  .card .lk{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px;display:flex;justify-content:space-between}
+  .card .lk a:hover{color:var(--accent)}
+  /* closing */
+  .close{text-align:center;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:48px 24px;margin-top:10px}
+  .close h2{font-size:34px}
+  footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 0 60px;font-family:var(--mono);
+         font-size:12px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  @media(max-width:680px){h1{font-size:40px}.metrics{grid-template-columns:repeat(2,1fr)}.step{grid-template-columns:1fr;gap:8px}}
+</style>
+</head>
+<body>
+<nav><div class="wrap nav-in">
+  <a class="brand" href="#top"><span class="mk">S</span>SENTINEL</a>
+  <div class="nav-links">
+    <a href="#gate">Gate</a><a href="#pipeline">Pipeline</a><a href="#gallery">Gallery</a>
+    <a href="https://github.com/PharosNetwork/pharos-skill-engine">Engine</a>
+  </div>
+  <div class="pill"><span class="dot"></span>Live · Pharos Atlantic</div>
+</div></nav>
+
+<div id="top" class="wrap">
+  <header class="hero">
+    <span class="kick">Pre-action on-chain risk gate · Pharos Atlantic</span>
+    <h1>Name an address.<br><span class="g">Sentinel judges it.</span></h1>
+    <p class="lede">Before an agent moves value, Sentinel reads the target <b>cold</b> — bytecode, storage,
+      ownership, token state — and returns a verdict with the reasons. <b>No allowlist. No oracle. Just the chain.</b></p>
+
+    <div class="console" id="gate">
+      <div class="console-h">
+        <span class="tag mono"><span class="dot"></span>RISK GATE · read-only</span>
+        <span class="mono">cast call / code / storage</span>
+      </div>
+      <div class="console-b">
+        <div class="field">
+          <input id="addr" placeholder="0x… contract or counterparty address" autocomplete="off" spellcheck="false" />
+          <select id="action" aria-label="action">
+            <option value="call">call</option><option value="transfer">transfer</option>
+            <option value="approve">approve</option><option value="swap">swap</option>
+          </select>
+          <button class="btn" id="scan">Scan ▸</button>
+        </div>
+        <div class="chips">
+          <span class="chip" data-a="0x63079724981B42967ee9F77E637767ac7779e181" data-act="transfer">Clean token</span>
+          <span class="chip" data-a="0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5" data-act="transfer">Zero-supply trap</span>
+          <span class="chip" data-a="0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513" data-act="call">Upgradeable proxy</span>
+          <span class="chip" data-a="0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D" data-act="call">Backdoor</span>
+        </div>
+        <pre id="log"></pre>
+        <div id="out">
+          <div class="v-top" id="vtop">
+            <div class="v-word" id="vword"><span class="led"></span><span id="vtext">—</span></div>
+            <div class="v-score"><span class="n" id="snum">—</span><span class="l">RISK SCORE</span></div>
+          </div>
+          <div class="v-meta" id="vmeta"></div>
+          <div class="v-find"><h4>Findings</h4><div id="tags"></div></div>
+          <div class="v-read" id="vread"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="n t-safe">688689</div><div class="l">Atlantic chainId</div></div>
+      <div class="metric"><div class="n">9</div><div class="l">on-chain signals</div></div>
+      <div class="metric"><div class="n">0</div><div class="l">keys held</div></div>
+      <div class="metric"><div class="n">read-only</div><div class="l">never signs</div></div>
+    </div>
+  </header>
+
+  <section id="pipeline">
+    <div class="sec-head">
+      <span class="kick">How it works</span>
+      <h2>Follow one check through the gate.</h2>
+      <p>Every verdict is built from read-only Foundry <span class="mono">cast</span> reads of the live chain — no indexer, no third-party API.</p>
+    </div>
+
+    <div class="step">
+      <div class="no">01</div>
+      <div>
+        <h3>Read the chain</h3>
+        <p>Sentinel pulls the target's bytecode, proxy storage slots, and token calls — all read-only, all through Foundry.</p>
+        <div class="pane">
+          <div class="row"><span><span class="k">cast code</span> 0x75fb…35d</span><span class="ok">515 bytes</span></div>
+          <div class="row"><span><span class="k">cast storage</span> …impl slot (EIP-1967)</span><span class="ok">read</span></div>
+          <div class="row"><span><span class="k">cast call</span> "paused()(bool)"</span><span class="warn">true</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="no">02</div>
+      <div>
+        <h3>Detect the signals</h3>
+        <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics.</p>
+        <div class="pane">
+          <div class="row"><span>SELFDESTRUCT in bytecode</span><span class="bad">found · +25</span></div>
+          <div class="row"><span>DELEGATECALL outside a proxy</span><span class="bad">found · +15</span></div>
+          <div class="row"><span>owner() is an EOA</span><span class="warn">found · +10</span></div>
+          <div class="row"><span>contract paused</span><span class="warn">found · +20</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="no">03</div>
+      <div>
+        <h3>Score it</h3>
+        <p>Signals stack into a single additive score, so multiple small risks add up to a loud one.</p>
+        <div class="pane"><div class="row"><span>25 + 15 + 10 + 20</span><span class="bad">= 70</span></div></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="no">04</div>
+      <div>
+        <h3>The verdict</h3>
+        <p>A band turns the score into a decision an agent can act on directly.</p>
+        <div class="bands">
+          <div class="band"><span class="t-safe">SAFE</span><div class="r">score &lt; 35</div></div>
+          <div class="band"><span class="t-caution">CAUTION</span><div class="r">35 – 69</div></div>
+          <div class="band"><span class="t-dangerous">DANGEROUS</span><div class="r">≥ 70</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="no">05</div>
+      <div>
+        <h3>Always the reasons</h3>
+        <p>Never just a number. Every verdict carries the human-readable why — the audit trail behind the call.</p>
+        <div class="pane">
+          <div class="row"><span class="bad">▸ bytecode contains SELFDESTRUCT — can be destroyed</span></div>
+          <div class="row"><span class="bad">▸ unguarded DELEGATECALL — can run external code</span></div>
+          <div class="row"><span class="warn">▸ single EOA owner holds privileged control</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="no">06</div>
+      <div>
+        <h3>Gate the action</h3>
+        <p><span class="mono">execution_plan</span> turns the verdict into approve/block plus a de-risked size — so value moves only when it's safe to.</p>
+        <div class="pane">
+          <div class="row"><span>safe target · transfer</span><span class="ok">APPROVED → full size</span></div>
+          <div class="row"><span>dangerous target · approve</span><span class="bad">BLOCKED → no tx signed</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gallery">
+    <div class="sec-head">
+      <span class="kick">Proven on-chain</span>
+      <h2>A live spectrum, not a demo reel.</h2>
+      <p>Six contracts deployed on Atlantic, each tripping a distinct signal. Sentinel reads them live; reproduce it with <span class="mono">python gallery.py</span>.</p>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <div class="close">
+    <span class="kick">The gate is open</span>
+    <h2>Check an address. Get the verdict.</h2>
+    <p class="lede" style="margin-bottom:22px">Read-only, keyless, reproducible — the most-called primitive in any on-chain agent stack.</p>
+    <a class="btn" href="#gate">Run a check ▸</a>
+  </div>
+
+  <footer>
+    <span>SENTINEL · read via Foundry cast · read-only · never signs · holds no key</span>
+    <span>MIT-0 · Pharos Atlantic chainId 688689</span>
+  </footer>
+</div>
+
+<script>
+  const $=s=>document.querySelector(s);
+  const ADDR_RE=/^0x[0-9a-fA-F]{40}$/;
+  const STEPS=["READING BYTECODE","SCANNING OPCODES","PROBING PROXY SLOTS","CHECKING OWNER","CHECKING PAUSE STATE","INTROSPECTING ERC-20"];
+  const short=a=>a.slice(0,10)+"…"+a.slice(-6);
+
+  const FIX=[
+    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:0,d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
+    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:10,d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
+    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:35,d:"Tiny bytecode stub / trap rather than a working contract."},
+    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:40,d:"Zero-supply token trap with a single EOA owner."},
+    {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,d:"EIP-1967 upgradeable + EOA owner + currently paused."},
+    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:70,d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
+  ];
+  const EXPL="https://atlantic.pharosscan.xyz/address/";
+  $("#grid").innerHTML=FIX.map(f=>`<div class="card"><div class="nm">${f.n}
+    <span class="vchip ${f.v}">${f.v.toUpperCase()} ${f.s}</span></div>
+    <div class="d">${f.d}</div>
+    <div class="lk"><span>${short(f.a)}</span><a href="${EXPL+f.a}" target="_blank" rel="noopener">explorer ↗</a></div></div>`).join("");
+
+  let timer=null;
+  function runLog(addr){
+    const log=$("#log");log.style.display="block";$("#out").style.display="none";
+    let lines=["> sentinel scan "+short(addr)+"  ["+$("#action").value+"]"];
+    log.textContent=lines.join("\n")+"\n";let i=0;
+    timer=setInterval(()=>{
+      if(i<STEPS.length){lines.push("  "+STEPS[i].padEnd(26,"·")+" ok");i++;}
+      log.innerHTML=lines.join("\n")+'\n  <span class="c">▌</span>';
+    },620);
+  }
+  function stop(){if(timer){clearInterval(timer);timer=null;}}
+
+  function render(addr,r){
+    stop();$("#log").style.display="none";
+    const v=(r.verdict||"unknown").toLowerCase();
+    $("#vtop").className="v-top "+v;
+    $("#vtext").textContent=v.toUpperCase();
+    $("#snum").textContent=(r.score!=null&&r.score>=0)?r.score:"—";
+    $("#vmeta").textContent="TARGET "+addr+"   ·   ACTION "+$("#action").value.toUpperCase();
+    const tags=$("#tags");tags.innerHTML="";
+    (r.reasons||[]).forEach(w=>{const d=document.createElement("div");d.className="find";
+      d.innerHTML='<span class="b">▸</span><span></span>';d.lastChild.textContent=w;tags.appendChild(d);});
+    const d=r.data||{},p=[];
+    if("is_contract" in d)p.push(d.is_contract?"CONTRACT":"EOA / WALLET");
+    if(d.code_size!=null)p.push("CODE "+d.code_size+"B");
+    if(d.erc20&&d.erc20.symbol)p.push("TOKEN "+d.erc20.symbol);
+    if(d.upgradeable_impl)p.push("UPGRADEABLE");
+    if(d.selfdestruct)p.push("SELFDESTRUCT");if(d.delegatecall)p.push("DELEGATECALL");
+    if(d.paused)p.push("PAUSED");if(d.owner)p.push("OWNER "+short(d.owner));
+    $("#vread").innerHTML=p.length?'<span class="t">READOUT</span>'+p.map(x=>"<span>"+x+"</span>").join(""):"";
+    $("#out").style.display="block";
+  }
+
+  async function scan(){
+    const addr=$("#addr").value.trim();
+    if(!ADDR_RE.test(addr)){
+      stop();$("#log").style.display="none";$("#vtop").className="v-top unknown";
+      $("#vtext").textContent="INVALID";$("#snum").textContent="—";
+      $("#vmeta").textContent="Not a valid address — expected 0x + 40 hex characters.";
+      $("#tags").innerHTML="";$("#vread").innerHTML="";$("#out").style.display="block";return;
+    }
+    runLog(addr);
+    try{
+      const res=await fetch("/check?address="+encodeURIComponent(addr)+"&action="+encodeURIComponent($("#action").value));
+      render(addr,await res.json());
+    }catch(e){render(addr,{verdict:"unknown",score:-1,reasons:["Could not reach the risk gate: "+e],data:{}});}
+  }
+  $("#scan").addEventListener("click",scan);
+  $("#addr").addEventListener("keydown",e=>{if(e.key==="Enter")scan();});
+  document.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{
+    $("#addr").value=c.dataset.a;$("#action").value=c.dataset.act;
+    document.getElementById("gate").scrollIntoView({block:"center"});scan();}));
+</script>
+</body>
+</html>

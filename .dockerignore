@@ -1,0 +1,21 @@
+# Secrets & internal — MUST NOT enter a public image. The hosted UI is keyless.
+.wallet
+.wallet.*
+.env
+*.key
+wallet*.json
+CLAUDE.md
+CONCEPT.md
+.leakscan.py
+
+# Not needed at runtime
+.git
+.gitignore
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+fixtures/out
+fixtures/cache
+fixtures/broadcast

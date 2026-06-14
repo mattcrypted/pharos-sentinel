@@ -272,6 +272,41 @@ The gate verifies payment with the **same Foundry `cast` reads Sentinel uses for
 server stays read-only and keyless (only the client sends value) and adds **no new dependencies**
 beyond Foundry + the Python stdlib. Full design and the official `@x402` SDK path: [`X402.md`](X402.md).
 
+## Verify it yourself
+
+Nothing here is a recording. Sentinel only **reads** public Pharos Atlantic state, so you can
+independently confirm both the verdicts and that it never writes.
+
+**1. Offline tests — no network, no Foundry:**
+```bash
+python -m unittest test_sentinel          # 34 deterministic tests pin the verdict logic
+```
+
+**2. Live risk gallery — read-only (needs Foundry `cast`):**
+```bash
+python gallery.py                         # re-checks the 6 deployed fixtures; fails on any drift
+```
+Expect a monotonic safe → caution → dangerous ladder, all six matching [`fixtures.json`](fixtures.json).
+
+**3. Check any address yourself:**
+```bash
+python sentinel_cli.py 0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D call   # the Backdoor fixture → dangerous (exit 2)
+```
+
+**4. Reproduce Sentinel's reads by hand** — proof it just reads public chain data via Foundry, nothing hidden:
+```bash
+RPC=https://atlantic.dplabs-internal.com
+# the bytecode Sentinel scans (contains SELFDESTRUCT / unguarded DELEGATECALL):
+cast code    0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D --rpc-url $RPC
+# the pause flag it reads:
+cast call    0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D "paused()(bool)" --rpc-url $RPC
+# the EIP-1967 implementation slot of the UpgradeableProxy fixture:
+cast storage 0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513 \
+  0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $RPC
+```
+These are exactly the reads documented in [`references/sentinel.md`](references/sentinel.md) — Sentinel just
+folds them into a single verdict. (All are `cast call` / `code` / `storage`; never `cast send`.)
+
 ## Security posture
 
 The Skill is intentionally minimal and auditable. It executes only **read-only Foundry `cast`

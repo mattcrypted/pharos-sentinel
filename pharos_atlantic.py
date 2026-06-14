@@ -43,6 +43,8 @@ def _cast(args: list, *, timeout: int = 30) -> str:
     Raises RuntimeError on a cast error (e.g. `execution reverted` for a method the
     target doesn't expose) — callers that treat that as "signal absent" wrap it in
     try/except, exactly as before. Retries transient RPC throttling with backoff."""
+    # SECURITY: this runs Foundry's `cast` — read-only, the engine's required execution
+    # path, fixed arguments (list form, no shell), never sends a transaction.
     cmd = [CAST, *args, "--rpc-url", RPC_URL]
     last = ""
     for attempt in range(4):
