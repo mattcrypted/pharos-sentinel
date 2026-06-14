@@ -28,19 +28,20 @@ import pharos_atlantic as pharos
 # so a consuming agent's output stays clean.
 mcp = FastMCP("sentinel", log_level="WARNING")
 
-# Verdict bands over the additive risk score.
-DANGEROUS_AT = 70
-CAUTION_AT = 35
+# Verdict bands over the 0–100 SAFETY score (100 = safest, 0 = riskiest):
+# every on-chain risk signal subtracts from a perfect 100, so higher is always better.
+SAFE_AT = 66      # safety >= 66 -> safe
+CAUTION_AT = 31   # safety >= 31 -> caution; anything lower -> dangerous
 
 _ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
-def _verdict(score: int) -> str:
-    if score >= DANGEROUS_AT:
-        return "dangerous"
-    if score >= CAUTION_AT:
+def _verdict(safety: int) -> str:
+    if safety >= SAFE_AT:
+        return "safe"
+    if safety >= CAUTION_AT:
         return "caution"
-    return "safe"
+    return "dangerous"
 
 
 def _score_contract(address: str, action: str, reasons: list, data: dict) -> int:
@@ -153,7 +154,8 @@ def risk_check(address: str, action: str = "transfer", amount_phrs: float = 0.0)
         address: target contract or counterparty (0x + 40 hex chars).
         action: one of transfer | swap | approve | call.
         amount_phrs: size of the action in PHRS (optional, for exposure context).
-    Returns a dict: {verdict, score, reasons[], data{}}.
+    Returns a dict: {verdict, score, reasons[], data{}} — `score` is a 0–100 safety
+    score (100 = safest, 0 = riskiest); `verdict` bands it (safe/caution/dangerous).
 
     Signals (read-only `cast` reads, v2): contract vs EOA; EIP-1167 minimal and EIP-1967/1822
     upgradeable-proxy detection; ERC-20 introspection (symbol/decimals/supply,
@@ -176,7 +178,10 @@ def risk_check(address: str, action: str = "transfer", amount_phrs: float = 0.0)
     contract = pharos.is_contract(address)
     data["is_contract"] = contract
 
-    score = (_score_contract if contract else _score_eoa)(address, action, reasons, data)
+    # Each signal accumulates risk points internally; the public score is the inverse —
+    # a 0–100 safety score (100 = safest, 0 = riskiest) so higher is always better.
+    risk = (_score_contract if contract else _score_eoa)(address, action, reasons, data)
+    safety = 100 - max(0, min(100, risk))
 
     if amount_phrs and amount_phrs > 0:
         data["amount_phrs"] = amount_phrs  # exposure context for the caller's own limits
@@ -184,7 +189,7 @@ def risk_check(address: str, action: str = "transfer", amount_phrs: float = 0.0)
     if not reasons:
         reasons.append("no elevated risk signals from on-chain checks (RPC heuristics v2)")
 
-    return {"verdict": _verdict(score), "score": score, "reasons": reasons, "data": data}
+    return {"verdict": _verdict(safety), "score": safety, "reasons": reasons, "data": data}
 
 
 @mcp.tool()

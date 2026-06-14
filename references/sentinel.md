@@ -45,7 +45,7 @@ python sentinel_cli.py <address> <action>
 | Field | Description |
 |-------|-------------|
 | `verdict` | `safe` \| `caution` \| `dangerous` \| `unknown` |
-| `score` | additive risk score (`>=70` dangerous, `>=35` caution, else safe) |
+| `score` | 0–100 safety score, 100 = safest (`>=66` safe, `31–65` caution, `<=30` dangerous) |
 | `reasons[]` | why the verdict was reached — always surface these to the user |
 | exit code | `0` = safe/caution (proceed), `2` = dangerous (block) |
 

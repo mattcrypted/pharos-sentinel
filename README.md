@@ -101,9 +101,10 @@ sequenceDiagram
 - **Pausable state** (`paused()`), **tiny-bytecode stubs**, and brand-new / zero-history
   counterparties (a typo & address-poisoning guard).
 
-The score is additive, so signals stack; the verdict is a band over it
-(`>=70` dangerous, `>=35` caution, else safe). Every signal feeds one additive score, which a
-band turns into the verdict and `execution_plan` turns into a decision:
+Every check starts at a perfect **100** and each signal subtracts from it, so risks stack into a
+single **safety score** (100 = safest, 0 = riskiest). The verdict is a band over it
+(`>=66` safe, `31–65` caution, `<=30` dangerous). The band turns the score into the verdict, and
+`execution_plan` turns that into a decision:
 
 ```mermaid
 flowchart TD
@@ -115,16 +116,16 @@ flowchart TD
     con --> own["ownership / upgrade-admin<br/>EOA vs contract"]
     con --> tok["ERC-20<br/>supply · zero-supply trap"]
     con --> st["pausable · tiny stub"]
-    eoa --> sc(["additive score"])
+    eoa --> sc(["safety score<br/>100 − risks"])
     px --> sc
     bc --> sc
     own --> sc
     tok --> sc
     st --> sc
-    sc --> band{"score band"}
-    band -->|">= 70"| dg["dangerous"]
-    band -->|">= 35"| ca["caution"]
-    band -->|"else"| sf["safe"]
+    sc --> band{"safety band"}
+    band -->|"<= 30"| dg["dangerous"]
+    band -->|"31 - 65"| ca["caution"]
+    band -->|">= 66"| sf["safe"]
     dg --> plan["execution_plan<br/>approve / block + bounded size"]
     ca --> plan
     sf --> plan
@@ -164,7 +165,7 @@ python -c "import pharos_atlantic as p; print('chain_ok:', p.chain_ok())"
 $ python sentinel_cli.py 0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23 call
 {
   "verdict": "caution",
-  "score": 35,
+  "score": 65,
   "reasons": ["tiny bytecode (1 bytes) — likely a stub/trap rather than a working contract"],
   "data": { "is_contract": true, "code_size": 1 }
 }

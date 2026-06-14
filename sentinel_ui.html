@@ -178,7 +178,7 @@
         <div id="out">
           <div class="v-top" id="vtop">
             <div class="v-word" id="vword"><span class="led"></span><span id="vtext">—</span></div>
-            <div class="v-score"><span class="n" id="snum">—</span><span class="l">RISK SCORE</span></div>
+            <div class="v-score"><span class="n" id="snum">—</span><span class="l">SAFETY SCORE</span></div>
           </div>
           <div class="v-meta" id="vmeta"></div>
           <div class="v-find"><h4>Findings</h4><div id="tags"></div></div>
@@ -219,12 +219,12 @@
       <div class="no">02</div>
       <div>
         <h3>Detect the signals</h3>
-        <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics.</p>
+        <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics. Each one found subtracts from the safety score.</p>
         <div class="pane">
-          <div class="row"><span>SELFDESTRUCT in bytecode</span><span class="bad">found · +25</span></div>
-          <div class="row"><span>DELEGATECALL outside a proxy</span><span class="bad">found · +15</span></div>
-          <div class="row"><span>owner() is an EOA</span><span class="warn">found · +10</span></div>
-          <div class="row"><span>contract paused</span><span class="warn">found · +20</span></div>
+          <div class="row"><span>SELFDESTRUCT in bytecode</span><span class="bad">found · −25</span></div>
+          <div class="row"><span>DELEGATECALL outside a proxy</span><span class="bad">found · −15</span></div>
+          <div class="row"><span>owner() is an EOA</span><span class="warn">found · −10</span></div>
+          <div class="row"><span>contract paused</span><span class="warn">found · −20</span></div>
         </div>
       </div>
     </div>
@@ -233,8 +233,8 @@
       <div class="no">03</div>
       <div>
         <h3>Score it</h3>
-        <p>Signals stack into a single additive score, so multiple small risks add up to a loud one.</p>
-        <div class="pane"><div class="row"><span>25 + 15 + 10 + 20</span><span class="bad">= 70</span></div></div>
+        <p>Every check starts at a perfect 100; each signal subtracts from it, so multiple small risks pull the safety score down.</p>
+        <div class="pane"><div class="row"><span>100 − 25 − 15 − 10 − 20</span><span class="bad">= 30</span></div></div>
       </div>
     </div>
 
@@ -244,9 +244,9 @@
         <h3>The verdict</h3>
         <p>A band turns the score into a decision an agent can act on directly.</p>
         <div class="bands">
-          <div class="band"><span class="t-safe">SAFE</span><div class="r">score &lt; 35</div></div>
-          <div class="band"><span class="t-caution">CAUTION</span><div class="r">35 – 69</div></div>
-          <div class="band"><span class="t-dangerous">DANGEROUS</span><div class="r">≥ 70</div></div>
+          <div class="band"><span class="t-safe">SAFE</span><div class="r">score ≥ 66</div></div>
+          <div class="band"><span class="t-caution">CAUTION</span><div class="r">31 – 65</div></div>
+          <div class="band"><span class="t-dangerous">DANGEROUS</span><div class="r">≤ 30</div></div>
         </div>
       </div>
     </div>
@@ -306,12 +306,12 @@
   const short=a=>a.slice(0,10)+"…"+a.slice(-6);
 
   const FIX=[
-    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:0,d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
-    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:10,d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
-    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:35,d:"Tiny bytecode stub / trap rather than a working contract."},
-    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:40,d:"Zero-supply token trap with a single EOA owner."},
+    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
+    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
+    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,d:"Tiny bytecode stub / trap rather than a working contract."},
+    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,d:"Zero-supply token trap with a single EOA owner."},
     {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,d:"EIP-1967 upgradeable + EOA owner + currently paused."},
-    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:70,d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
+    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:30,d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
   ];
   const EXPL="https://atlantic.pharosscan.xyz/address/";
   $("#grid").innerHTML=FIX.map(f=>`<div class="card"><div class="nm">${f.n}
