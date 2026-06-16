@@ -182,8 +182,10 @@
   @media(prefers-reduced-motion:reduce){ .viz svg *{animation:none!important} .vLamp{opacity:1} }
   /* gallery */
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:26px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px}
-  .card:hover{border-color:var(--line2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px;cursor:pointer;transition:border-color .15s,transform .15s}
+  .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .card:focus-visible{border-color:var(--accent);outline:none}
+  .card .run{color:var(--accent)} .card .ex{color:var(--dim)}
   .card .nm{font-family:var(--disp);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:space-between}
   .vchip{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:3px 9px;border-radius:999px;border:1px solid}
   .vchip.safe{color:var(--safe);border-color:rgba(52,211,153,.4)}
@@ -270,6 +272,8 @@
         </div>
         <div class="chips">
           <span class="chip" data-a="0x63079724981B42967ee9F77E637767ac7779e181" data-act="transfer">Clean token</span>
+          <span class="chip" data-a="0x434d20f7211deaca55667d313b9e6035481ef6f5" data-act="call">Minimal proxy</span>
+          <span class="chip" data-a="0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23" data-act="call">Tiny stub</span>
           <span class="chip" data-a="0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5" data-act="transfer">Zero-supply trap</span>
           <span class="chip" data-a="0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513" data-act="call">Upgradeable proxy</span>
           <span class="chip" data-a="0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D" data-act="call">Backdoor</span>
@@ -435,7 +439,7 @@
     <div class="sec-head">
       <span class="kick">Proven on-chain</span>
       <h2>A live spectrum, not a demo reel.</h2>
-      <p>Six contracts deployed on Atlantic, each tripping a distinct signal. Sentinel reads them live, straight from the chain.</p>
+      <p>Six contracts deployed on Atlantic, each tripping a distinct signal. <b>Click any card</b> to run it through the gate live.</p>
     </div>
     <div class="grid" id="grid"></div>
   </section>
@@ -469,18 +473,22 @@
   }
 
   const FIX=[
-    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
-    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
-    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,d:"Tiny bytecode stub / trap rather than a working contract."},
-    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,d:"Zero-supply token trap with a single EOA owner."},
-    {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,d:"EIP-1967 upgradeable + EOA owner + currently paused."},
-    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:30,d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
+    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,act:"transfer",d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
+    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,act:"call",d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
+    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,act:"call",d:"Tiny bytecode stub / trap rather than a working contract."},
+    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,act:"transfer",d:"Zero-supply token trap with a single EOA owner."},
+    {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,act:"call",d:"EIP-1967 upgradeable + EOA owner + currently paused."},
+    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:30,act:"call",d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
   ];
   const EXPL="https://atlantic.pharosscan.xyz/address/";
-  $("#grid").innerHTML=FIX.map(f=>`<div class="card"><div class="nm">${f.n}
-    <span class="vchip ${f.v}">${f.v.toUpperCase()} ${f.s}</span></div>
+  $("#grid").innerHTML=FIX.map(f=>`<div class="card" data-a="${f.a}" data-act="${f.act}" role="button" tabindex="0">
+    <div class="nm">${f.n}<span class="vchip ${f.v}">${f.v.toUpperCase()} ${f.s}</span></div>
     <div class="d">${f.d}</div>
-    <div class="lk"><span>${short(f.a)}</span><a href="${EXPL+f.a}" target="_blank" rel="noopener">explorer ↗</a></div></div>`).join("");
+    <div class="lk"><span class="run">▸ run live check</span><a class="ex" href="${EXPL+f.a}" target="_blank" rel="noopener">explorer ↗</a></div></div>`).join("");
+  function runCard(card){if(!card)return;$("#addr").value=card.dataset.a;$("#action").value=card.dataset.act;
+    document.getElementById("gate").scrollIntoView({block:"center"});scan();}
+  $("#grid").addEventListener("click",e=>{if(e.target.closest("a"))return;runCard(e.target.closest(".card"));});
+  $("#grid").addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!==" ")return;e.preventDefault();runCard(e.target.closest(".card"));});
 
   let timer=null;
   function runLog(addr){
