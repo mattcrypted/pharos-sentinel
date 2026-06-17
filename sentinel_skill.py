@@ -56,32 +56,32 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
     if minimal:
         data["minimal_proxy"] = True
         score += 10
-        reasons.append("EIP-1167 minimal proxy — the real logic lives in a fixed implementation; verify it")
+        reasons.append("EIP-1167 minimal proxy. The real logic lives in a fixed implementation. Verify it")
     if impl:
         data["upgradeable_impl"] = impl
         score += 20
-        reasons.append(f"upgradeable proxy (impl {impl}) — the owner can change the contract's logic after you interact")
+        reasons.append(f"upgradeable proxy (impl {impl}). The owner can change the contract's logic after you interact")
     elif size < 100 and not minimal:
         score += 35
-        reasons.append(f"tiny bytecode ({size} bytes) — likely a stub/trap rather than a working contract")
+        reasons.append(f"tiny bytecode ({size} bytes). Likely a stub or trap rather than a working contract")
 
     token = pharos.erc20_info(address)
     if token["is_erc20"]:
         data["erc20"] = {k: token[k] for k in ("symbol", "name", "decimals", "total_supply")}
         if token["total_supply"] == 0:
             score += 30
-            reasons.append("token reports zero total supply — non-functional or a trap")
+            reasons.append("token reports zero total supply. Non-functional, or a trap")
 
     # bytecode opcode analysis (proper opcode walk, not a substring match)
     ops = pharos.dangerous_opcodes(address)
     if ops["selfdestruct"]:
         data["selfdestruct"] = True
         score += 25
-        reasons.append("bytecode contains SELFDESTRUCT — the contract can be destroyed, taking its logic with it")
+        reasons.append("bytecode contains SELFDESTRUCT. The contract can be destroyed, taking its logic with it")
     if ops["delegatecall"] and not (minimal or impl):
         data["delegatecall"] = True
         score += 15
-        reasons.append("bytecode uses DELEGATECALL outside a known proxy pattern — it can execute external code")
+        reasons.append("bytecode uses DELEGATECALL outside a known proxy pattern. It can execute external code")
 
     # ownership / upgrade-admin concentration
     own = pharos.owner(address)
@@ -89,7 +89,7 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
         data["owner"] = own
         if pharos.is_contract(own):
             score += 5
-            reasons.append(f"owned by a contract ({own}) — likely a multisig/timelock; verify it")
+            reasons.append(f"owned by a contract ({own}). Likely a multisig or timelock. Verify it")
         else:
             score += 10
             reasons.append(f"single externally-owned owner ({own}) holds privileged control (can often pause/mint/blacklist)")
@@ -98,13 +98,13 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
         data["proxy_admin"] = adm
         if not impl:
             score += 10
-            reasons.append(f"has an EIP-1967 upgrade admin ({adm}) — contract logic can be changed")
+            reasons.append(f"has an EIP-1967 upgrade admin ({adm}). Contract logic can be changed")
 
     # pausable state
     if pharos.is_paused(address) is True:
         data["paused"] = True
         score += 20
-        reasons.append("contract is currently PAUSED — interactions may fail or are gated by the owner")
+        reasons.append("contract is currently PAUSED. Interactions may fail or are gated by the owner")
 
     if action == "approve":
         # Soften approvals to plain, healthy tokens (a normal, expected action);
@@ -113,14 +113,14 @@ def _score_contract(address: str, action: str, reasons: list, data: dict) -> int
         if token["is_erc20"]:
             if (token["total_supply"] or 0) > 0 and not (minimal or impl):
                 score += 10
-                reasons.append("approve grants a spend allowance — set a finite cap and approve only trusted spenders")
+                reasons.append("approve grants a spend allowance. Set a finite cap and approve only trusted spenders")
             else:
                 score += 35
-                reasons.append("approve to a non-standard token (zero-supply or upgradeable) — verify before granting an allowance")
+                reasons.append("approve to a non-standard token (zero-supply or upgradeable). Verify before granting an allowance")
         else:
             score += 50
-            reasons.append("approve target does not expose an ERC-20 interface — approvals are for tokens; "
-                           "this is the #1 drain vector, verify the target")
+            reasons.append("approve target does not expose an ERC-20 interface. Approvals are for tokens. "
+                           "This is the #1 drain vector, so verify the target")
 
     return score
 
@@ -135,13 +135,13 @@ def _score_eoa(address: str, action: str, reasons: list, data: dict) -> int:
 
     if action in ("approve", "swap", "call"):
         score += 35
-        reasons.append(f"'{action}' target is an externally-owned account, not a contract — it cannot honor this action; likely a mistake")
+        reasons.append(f"'{action}' target is an externally-owned account, not a contract. It cannot honor this action, and is likely a mistake")
     if hist == 0 and bal == 0:
         score += 35
-        reasons.append("counterparty has no transaction history and zero balance — brand-new/unused address")
+        reasons.append("counterparty has no transaction history and zero balance. Brand-new or unused address")
     elif hist == 0:
         score += 10
-        reasons.append("counterparty has received funds but never sent a transaction — limited history")
+        reasons.append("counterparty has received funds but never sent a transaction. Limited history")
 
     return score
 

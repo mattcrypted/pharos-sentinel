@@ -304,14 +304,14 @@
     <div class="sec-head">
       <span class="kick">How it works</span>
       <h2>Follow one check through the gate.</h2>
-      <p>Every verdict is built from read-only Foundry <span class="mono">cast</span> reads of the live chain — no indexer, no third-party API.</p>
+      <p>Every verdict is built from read-only Foundry <span class="mono">cast</span> reads of the live chain. No indexer, no third-party API.</p>
     </div>
 
     <div class="step">
       <div class="no">01</div>
       <div>
         <h3>Read the chain</h3>
-        <p>Sentinel pulls the target's bytecode, proxy storage slots, and token calls — all read-only, all through Foundry.</p>
+        <p>Sentinel pulls the target's bytecode, proxy storage slots, and token calls. All read-only, all through Foundry.</p>
         <div class="viz" aria-hidden="true">
           <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
             <line class="track" x1="34" y1="62" x2="512" y2="62"/>
@@ -338,7 +338,7 @@
       <div class="no">02</div>
       <div>
         <h3>Detect the signals</h3>
-        <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets — not surface heuristics. Each one found subtracts from the safety score.</p>
+        <p>It walks the opcodes and proxy slots for the patterns that actually drain wallets, not surface heuristics. Each one found subtracts from the safety score.</p>
         <div class="viz" aria-hidden="true">
           <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
             <circle cx="280" cy="54" r="40" class="track"/>
@@ -377,7 +377,7 @@
       <div class="no">04</div>
       <div>
         <h3>The verdict</h3>
-        <p>A band turns the score into a clear decision — <span class="t-safe">safe</span>, <span class="t-caution">caution</span>, or <span class="t-dangerous">dangerous</span> — an agent can act on directly.</p>
+        <p>A band turns the score into a clear call an agent can act on directly: <span class="t-safe">safe</span>, <span class="t-caution">caution</span>, or <span class="t-dangerous">dangerous</span>.</p>
         <div class="viz" aria-hidden="true">
           <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
             <g class="vLamp">
@@ -401,7 +401,7 @@
       <div class="no">05</div>
       <div>
         <h3>Always the reasons</h3>
-        <p>Never just a number. Every verdict carries the human-readable why — the audit trail behind the call.</p>
+        <p>Never just a number. Every verdict carries the human-readable why. It's the audit trail behind the call.</p>
         <div class="viz" aria-hidden="true">
           <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
             <path d="M40 28 l7 3.5 l-7 3.5 z" fill="var(--accent)" opacity=".7"/>
@@ -420,7 +420,7 @@
       <div class="no">06</div>
       <div>
         <h3>Gate the action</h3>
-        <p>The verdict becomes an action — approve or block, plus a de-risked size — so value moves only when it's safe to.</p>
+        <p>The verdict becomes an action: approve or block, plus a de-risked size. Value moves only when it's safe to.</p>
         <div class="viz" aria-hidden="true">
           <svg viewBox="0 0 560 104" preserveAspectRatio="xMidYMid meet">
             <line class="track" x1="26" y1="62" x2="520" y2="62" opacity=".5"/>
@@ -447,7 +447,7 @@
   <div class="close">
     <span class="kick">The gate is open</span>
     <h2>Check an address. Get the verdict.</h2>
-    <p class="lede" style="margin-bottom:22px">Read-only, keyless, reproducible — the most-called primitive in any on-chain agent stack.</p>
+    <p class="lede" style="margin-bottom:22px">Read-only, keyless, reproducible. The most-called primitive in any on-chain agent stack.</p>
     <a class="btn" href="#gate">Run a check ▸</a>
   </div>
 
@@ -473,8 +473,8 @@
   }
 
   const FIX=[
-    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,act:"transfer",d:"Clean ERC-20, no privileged owner — the baseline. Sentinel doesn't cry wolf."},
-    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,act:"call",d:"EIP-1167 minimal proxy — logic lives in a fixed implementation."},
+    {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,act:"transfer",d:"Clean ERC-20, no privileged owner. The baseline. Sentinel doesn't cry wolf."},
+    {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,act:"call",d:"EIP-1167 minimal proxy. Logic lives in a fixed implementation."},
     {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,act:"call",d:"Tiny bytecode stub / trap rather than a working contract."},
     {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,act:"transfer",d:"Zero-supply token trap with a single EOA owner."},
     {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,act:"call",d:"EIP-1967 upgradeable + EOA owner + currently paused."},
@@ -532,7 +532,7 @@
     if(!ADDR_RE.test(addr)){
       stop();$("#log").style.display="none";$("#vtop").className="v-top unknown";
       $("#vtext").textContent="INVALID";$("#snum").textContent="—";
-      $("#vmeta").textContent="Not a valid address — expected 0x + 40 hex characters.";
+      $("#vmeta").textContent="Not a valid address. Expected 0x + 40 hex characters.";
       $("#tags").innerHTML="";$("#vread").innerHTML="";$("#out").style.display="block";return;
     }
     runLog(addr);
