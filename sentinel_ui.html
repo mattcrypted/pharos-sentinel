@@ -274,7 +274,7 @@
           <span class="chip" data-a="0x63079724981B42967ee9F77E637767ac7779e181" data-act="transfer">Clean token</span>
           <span class="chip" data-a="0x434d20f7211deaca55667d313b9e6035481ef6f5" data-act="call">Minimal proxy</span>
           <span class="chip" data-a="0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23" data-act="call">Tiny stub</span>
-          <span class="chip" data-a="0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5" data-act="transfer">Zero-supply trap</span>
+          <span class="chip" data-a="0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5" data-act="transfer">Zero supply trap</span>
           <span class="chip" data-a="0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513" data-act="call">Upgradeable proxy</span>
           <span class="chip" data-a="0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D" data-act="call">Backdoor</span>
         </div>
@@ -475,10 +475,10 @@
   const FIX=[
     {n:"Clean token",a:"0x63079724981B42967ee9F77E637767ac7779e181",v:"safe",s:100,act:"transfer",d:"Clean ERC-20, no privileged owner. The baseline. Sentinel doesn't cry wolf."},
     {n:"Minimal proxy",a:"0x434d20f7211deaca55667d313b9e6035481ef6f5",v:"safe",s:90,act:"call",d:"EIP-1167 minimal proxy. Logic lives in a fixed implementation."},
-    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,act:"call",d:"Tiny bytecode stub / trap rather than a working contract."},
-    {n:"Zero-supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,act:"transfer",d:"Zero-supply token trap with a single EOA owner."},
-    {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,act:"call",d:"EIP-1967 upgradeable + EOA owner + currently paused."},
-    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:30,act:"call",d:"SELFDESTRUCT + unguarded DELEGATECALL + paused + EOA owner."},
+    {n:"Tiny stub",a:"0x24f3cd306c85903ca2ccd0ee8dc1c74111151b23",v:"caution",s:65,act:"call",d:"Tiny bytecode stub or trap rather than a working contract."},
+    {n:"Zero supply trap",a:"0x59A0cb6350D93714e557Ea0ddC2e60d1aD558dc5",v:"caution",s:60,act:"transfer",d:"Zero supply token trap with a single EOA owner."},
+    {n:"Upgradeable proxy",a:"0xE7797e15DEb86931d7F7b940684Ed1edc5cC7513",v:"caution",s:50,act:"call",d:"EIP-1967 upgradeable, EOA owner, currently paused."},
+    {n:"Backdoor",a:"0x75fb8b091A7A88bAF14F23Eac2F33962A4Cdd35D",v:"dangerous",s:30,act:"call",d:"SELFDESTRUCT, unguarded DELEGATECALL, paused, EOA owner."},
   ];
   const EXPL="https://atlantic.pharosscan.xyz/address/";
   $("#grid").innerHTML=FIX.map(f=>`<div class="card" data-a="${f.a}" data-act="${f.act}" role="button" tabindex="0">
