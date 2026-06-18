@@ -33,8 +33,7 @@
       border-bottom:1px solid var(--line)}
   .nav-in{display:flex;align-items:center;justify-content:space-between;height:60px}
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;letter-spacing:1px}
-  .brand .mk{width:22px;height:22px;border:2px solid var(--accent);border-radius:6px;display:grid;place-items:center;
-             font-size:12px;color:var(--accent)}
+  .brand .mk{width:23px;height:23px;color:var(--accent);flex:none}
   .nav-links{display:flex;gap:26px;font-size:13px;color:var(--muted)}
   .nav-links a:hover{color:var(--tx)}
   .pill{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--muted);
@@ -223,7 +222,7 @@
 </head>
 <body>
 <nav><div class="wrap nav-in">
-  <a class="brand" href="#top"><span class="mk">S</span>SENTINEL</a>
+  <a class="brand" href="#top"><svg class="mk" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 4 L26 8 V15 C26 22 21 26.5 16 28 C11 26.5 6 22 6 15 V8 Z" stroke="currentColor" stroke-width="2"/><path d="M11.5 16 L14.5 19 L20.5 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>SENTINEL</a>
   <div class="nav-links">
     <a href="#gate">Gate</a><a href="#pipeline">Pipeline</a><a href="#gallery">Gallery</a>
   </div>
